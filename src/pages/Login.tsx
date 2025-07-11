@@ -65,24 +65,24 @@ const Login = () => {
 
   return (
     <div
-      className="relative min-h-screen bg-cover bg-center bg-no-repeat"
+      className="min-h-screen flex flex-col items-center justify-center px-4 bg-cover bg-center bg-no-repeat"
       style={{
         backgroundImage: `url(${bgImage})`,
       }}
     >
-      {/* App Title */}
-      <div className="absolute top-12 left-1/2 transform -translate-x-1/2 text-center z-20">
-        <h1 className="text-6xl font-bold text-red-500 drop-shadow-lg tracking-wide font-serif">
+      {/* Header Wrapper */}
+      <div className="w-full max-w-4xl text-center mb-6 md:mb-10 px-2">
+        <h1 className="text-5xl md:text-7xl font-extrabold text-red-600 drop-shadow tracking-wide font-serif">
           Perudo
         </h1>
-        <p className="text-xl text-yellow-100 mt-2 font-medium drop-shadow">
+        <p className="text-lg md:text-2xl text-yellow-100 mt-2 font-medium drop-shadow">
           Now with 20% more deception!
         </p>
       </div>
 
-      {/* Card Container */}
-      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md px-4 z-20">
-        <Card className="w-full bg-black/50 border border-yellow-200/30 text-white shadow-lg rounded-xl p-6">
+      {/* Login Card */}
+      <div className="w-full max-w-md px-4">
+        <Card className="bg-black/40 border border-yellow-200/30 text-white shadow-lg rounded-xl p-6 card-overlay">
           <CardHeader>
             <CardTitle className="text-center text-yellow-100 text-2xl font-bold font-serif">
               {isSigningUp ? 'Sign Up' : 'Login'}
