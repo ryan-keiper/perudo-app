@@ -110,6 +110,10 @@
   --sidebar-ring: oklch(0.552 0.016 285.938);
 }
 
+.card-overlay {
+  box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.5);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

@@ -65,25 +65,26 @@ const Login = () => {
 
   return (
     <div
-      className="min-h-screen bg-cover bg-center flex flex-col items-center px-4 pt-12 relative"
-      style={{ backgroundImage: `url(${bgImage})` }}
+      className="relative min-h-screen bg-cover bg-center bg-no-repeat"
+      style={{
+        backgroundImage: `url(${bgImage})`,
+      }}
     >
-      {/* Optional dark overlay */}
-      <div className="absolute inset-0 bg-black/30 z-0" />
-
       {/* App Title */}
-      <div className="text-center mb-12 z-10">
-        <h1 className="text-5xl font-extrabold text-white drop-shadow-lg">Perudo</h1>
-        <p className="text-lg text-gray-200 mt-2 drop-shadow-sm">
+      <div className="absolute top-12 left-1/2 transform -translate-x-1/2 text-center z-20">
+        <h1 className="text-6xl font-bold text-white drop-shadow-lg tracking-wide font-serif">
+          Perudo
+        </h1>
+        <p className="text-xl text-yellow-100 mt-2 font-medium drop-shadow">
           Now with 20% more deception!
         </p>
       </div>
 
       {/* Card Container */}
-      <div className="flex-1 w-full flex items-start justify-center z-10">
-        <Card className="w-full max-w-md shadow-md">
+      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-md px-4 z-20">
+        <Card className="w-full bg-black/50 border border-yellow-200/30 text-white shadow-lg rounded-xl p-6 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle className="text-center">
+            <CardTitle className="text-center text-yellow-100 text-2xl font-bold font-serif">
               {isSigningUp ? 'Sign Up' : 'Login'}
             </CardTitle>
           </CardHeader>
