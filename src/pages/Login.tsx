@@ -132,7 +132,7 @@ const Login = () => {
               <div className="text-center">
                 <button
                   type="button"
-                  className="text-sm text-muted-foreground hover:underline"
+                  className="text-sm text-white hover:underline"
                   onClick={() => setIsSigningUp((prev) => !prev)}
                 >
                   {isSigningUp
