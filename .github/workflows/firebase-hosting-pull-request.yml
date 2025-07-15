@@ -17,5 +17,5 @@ jobs:
       - uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
-          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PERUDO_F431F }}
-          projectId: perudo-f431f
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_PLAY_PERUDO }}
+          projectId: play-perudo
