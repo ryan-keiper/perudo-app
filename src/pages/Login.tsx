@@ -39,7 +39,7 @@ const Login = () => {
   // Redirect if already logged in
   useEffect(() => {
     if (!loading && user) {
-      navigate('/game')
+      navigate('/gamelobby')
     }
   }, [loading, user, navigate])
 
@@ -57,7 +57,7 @@ const Login = () => {
       } else {
         await signInWithEmailAndPassword(auth, email, password)
       }
-      navigate('/game')
+      navigate('/gamelobby')
     } catch (err: any) {
       setError(err.message)
     }
