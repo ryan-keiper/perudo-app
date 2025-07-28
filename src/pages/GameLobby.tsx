@@ -158,8 +158,7 @@ const GameLobby = () => {
         }
 
         await updateDoc(gameRef, {
-          gameState: initialGameState,
-          status: 'active'
+          gameState: initialGameState
         })
       } else {
         // Add player to existing game
