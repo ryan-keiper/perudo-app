@@ -1,6 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import Login from './pages/Login';
-import Game from './pages/Game';
+import GameLobby from './pages/GameLobby';
 import ProtectedRoute from './routes/ProtectedRoute';
 
 const App = () => {
@@ -11,7 +11,7 @@ const App = () => {
       path="/game"
       element={
         <ProtectedRoute>
-          <Game />
+          <GameLobby />
         </ProtectedRoute>
       }
     />
