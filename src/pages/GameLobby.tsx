@@ -12,7 +12,7 @@ import {
   orderBy, 
   updateDoc,
   doc,
-  arrayUnion,
+  getDoc,
   serverTimestamp 
 } from 'firebase/firestore'
 
@@ -20,8 +20,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import bgDesktop from "@/assets/wood_background_desktop.jpg"
-import bgMobile from "@/assets/wood_background_mobile.jpg"
+import bgDesktop from "@/assets/login_bg_desktop.jpg"
+import bgMobile from "@/assets/login_bg_mobile_2.jpg"
 
 interface Game {
   id: string
@@ -41,7 +41,10 @@ const GameLobby = () => {
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newGameName, setNewGameName] = useState('')
+  const [showNicknameModal, setShowNicknameModal] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  const [joiningGameId, setJoiningGameId] = useState<string>('')
+  const [nickname, setNickname] = useState('')
   const [bgImage, setBgImage] = useState(
     window.innerWidth < 768 ? bgMobile : bgDesktop
   )
@@ -109,17 +112,85 @@ const GameLobby = () => {
     }
   }
 
-  const handleJoinGame = async (gameId: string) => {
-    if (!user) return
+  const handleJoinGame = (gameId: string) => {
+    setJoiningGameId(gameId)
+    setShowNicknameModal(true)
+  }
+
+  const handleJoinWithNickname = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user || !nickname.trim() || !joiningGameId) return
 
     try {
-      const gameRef = doc(db, 'games', gameId)
-      await updateDoc(gameRef, {
-        players: arrayUnion(user.email || user.uid)
-      })
+      const gameRef = doc(db, 'games', joiningGameId)
+      const gameDoc = await getDoc(gameRef)
       
-      // Navigate to the game
-      navigate(`/game/${gameId}`)
+      if (!gameDoc.exists()) {
+        console.error('Game not found')
+        return
+      }
+
+      const gameData = gameDoc.data()
+      const playerId = user.email || user.uid
+
+      // Initialize game state if this is the first player joining
+      if (!gameData.gameState) {
+        const initialGameState = {
+          players: {
+            [playerId]: {
+              name: user.displayName || user.email || 'Unknown',
+              email: user.email || '',
+              nickname: nickname.trim(),
+              diceCount: 5,
+              currentDice: [],
+              calzaCount: 0,
+              status: 'alive',
+              joinedAt: serverTimestamp()
+            }
+          },
+          currentRound: 1,
+          currentPlayerId: playerId,
+          playerOrder: [playerId],
+          direction: 'clockwise',
+          phase: 'waiting',
+          isPalifico: false,
+          currentRoundDice: {}
+        }
+
+        await updateDoc(gameRef, {
+          gameState: initialGameState,
+          status: 'active'
+        })
+      } else {
+        // Add player to existing game
+        const updatedPlayers = {
+          ...gameData.gameState.players,
+          [playerId]: {
+            name: user.displayName || user.email || 'Unknown',
+            email: user.email || '',
+            nickname: nickname.trim(),
+            diceCount: 5,
+            currentDice: [],
+            calzaCount: 0,
+            status: 'alive',
+            joinedAt: serverTimestamp()
+          }
+        }
+
+        const updatedPlayerOrder = [...gameData.gameState.playerOrder, playerId]
+
+        await updateDoc(gameRef, {
+          'gameState.players': updatedPlayers,
+          'gameState.playerOrder': updatedPlayerOrder
+        })
+      }
+
+      // Clear modal and navigate to game
+      setNickname('')
+      setShowNicknameModal(false)
+      setJoiningGameId('')
+      navigate(`/game/${joiningGameId}`)
+      
     } catch (error) {
       console.error('Error joining game:', error)
       // TODO: Add error toast/notification
@@ -195,7 +266,7 @@ const GameLobby = () => {
             <Button
               onClick={handleViewHistory}
               variant="outline"
-              className="w-full border-2 border-yellow-400 text-yellow-500 hover:bg-yellow-400/20 hover:text-yellow-100 py-3 text-lg transition-colors"
+              className="w-full border-2 border-yellow-400 text-yellow-300 hover:bg-yellow-400/20 hover:text-yellow-100 py-3 text-lg transition-colors"
             >
               {showHistory ? 'View Active Games' : 'View Game History'}
             </Button>
@@ -209,7 +280,7 @@ const GameLobby = () => {
         {/* Right Panel - Active Games / Game History */}
         <Card className="bg-green-800/80 border-2 border-green-600 text-white shadow-xl">
           <CardHeader>
-            <CardTitle className="text-2xl text-center text-yellow-500 font-serif">
+            <CardTitle className="text-2xl text-center text-yellow-100 font-serif">
               {showHistory ? 'Game History' : 'Active Games'}
             </CardTitle>
           </CardHeader>
@@ -271,7 +342,58 @@ const GameLobby = () => {
         </Card>
       </div>
 
-      {/* Create Game Modal */}
+      {/* Nickname Modal */}
+      {showNicknameModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <Card className="bg-green-800 border-2 border-green-600 text-white w-full max-w-md">
+            <CardHeader>
+              <CardTitle className="text-xl text-center text-yellow-100">
+                Choose Your Nickname
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleJoinWithNickname} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nickname" className="text-yellow-100">
+                    What should other players call you?
+                  </Label>
+                  <Input
+                    id="nickname"
+                    type="text"
+                    value={nickname}
+                    onChange={(e) => setNickname(e.target.value)}
+                    placeholder="Enter your nickname..."
+                    className="bg-green-700 border-green-600 text-white placeholder-green-300"
+                    maxLength={20}
+                    required
+                  />
+                </div>
+                
+                <div className="flex space-x-3 pt-4">
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setShowNicknameModal(false)
+                      setNickname('')
+                      setJoiningGameId('')
+                    }}
+                    variant="outline"
+                    className="flex-1 border-red-500 text-red-400 hover:bg-red-500/20"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="flex-1 bg-yellow-500 hover:bg-yellow-400 text-black font-bold"
+                  >
+                    Join Game
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <Card className="bg-green-800 border-2 border-green-600 text-white w-full max-w-md">
