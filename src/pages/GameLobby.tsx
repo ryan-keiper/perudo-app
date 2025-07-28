@@ -2,7 +2,19 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { signOut } from 'firebase/auth'
-import { auth } from '../firebase/firebase'
+import { auth, db } from '../firebase/firebase'
+import { 
+  collection, 
+  addDoc, 
+  onSnapshot, 
+  query, 
+  where, 
+  orderBy, 
+  updateDoc,
+  doc,
+  arrayUnion,
+  serverTimestamp 
+} from 'firebase/firestore'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -11,14 +23,14 @@ import { Label } from '@/components/ui/label'
 import bgDesktop from "@/assets/wood_background_desktop.jpg"
 import bgMobile from "@/assets/wood_background_mobile.jpg"
 
-// Mock data - replace with Firebase calls
 interface Game {
   id: string
   name: string
-  players: number
-  maxPlayers: number
-  bet: string
   createdBy: string
+  createdAt: any
+  players: string[]
+  status: 'waiting' | 'active' | 'completed'
+  winner?: string // for completed games
 }
 
 const GameLobby = () => {
@@ -29,6 +41,7 @@ const GameLobby = () => {
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newGameName, setNewGameName] = useState('')
+  const [showHistory, setShowHistory] = useState(false)
   const [bgImage, setBgImage] = useState(
     window.innerWidth < 768 ? bgMobile : bgDesktop
   )
@@ -42,60 +55,80 @@ const GameLobby = () => {
     return () => window.removeEventListener("resize", handleResize)
   }, [])
 
-  // Mock data loading - replace with Firebase
+  // Real-time games listener
   useEffect(() => {
-    const loadGames = async () => {
-      setLoading(true)
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      setGames([
-        { id: '1', name: "Brendan's Bonanza", players: 4, maxPlayers: 6, bet: "5 Gold", createdBy: "Brendan" },
-        { id: '2', name: "The Salty Spitoon", players: 2, maxPlayers: 4, bet: "10 Gold", createdBy: "Sarah" },
-        { id: '3', name: "Dicey Endeavors", players: 3, maxPlayers: 6, bet: "2 Gold", createdBy: "Mike" },
-        { id: '4', name: "The Last Stand", players: 3, maxPlayers: 5, bet: "5 Gold", createdBy: "Emma" }
-      ])
+    if (!user) return
+
+    const gameStatus = showHistory ? 'completed' : 'waiting'
+    const gamesQuery = query(
+      collection(db, 'games'),
+      where('status', '==', gameStatus),
+      orderBy('createdAt', 'desc')
+    )
+
+    const unsubscribe = onSnapshot(gamesQuery, (snapshot) => {
+      const gamesList: Game[] = []
+      snapshot.forEach((doc) => {
+        gamesList.push({
+          id: doc.id,
+          ...doc.data()
+        } as Game)
+      })
+      setGames(gamesList)
       setLoading(false)
-    }
-    
-    loadGames()
-  }, [])
+    }, (error) => {
+      console.error('Error fetching games:', error)
+      setLoading(false)
+    })
+
+    return () => unsubscribe()
+  }, [user, showHistory])
 
   const handleCreateGame = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newGameName.trim()) return
+    if (!newGameName.trim() || !user) return
 
-    // TODO: Create game in Firebase
-    console.log('Creating game:', newGameName)
-    
-    // For now, just add to local state
-    const newGame: Game = {
-      id: Date.now().toString(),
-      name: newGameName,
-      players: 1,
-      maxPlayers: 6,
-      bet: "5 Gold",
-      createdBy: user?.email || "Unknown"
+    try {
+      const gameData = {
+        name: newGameName.trim(),
+        createdBy: user.email || user.uid,
+        createdAt: serverTimestamp(),
+        players: [user.email || user.uid],
+        status: 'waiting' as const
+      }
+
+      await addDoc(collection(db, 'games'), gameData)
+      
+      setNewGameName('')
+      setShowCreateModal(false)
+      
+      // Game will automatically appear in the active games list via real-time listener
+    } catch (error) {
+      console.error('Error creating game:', error)
+      // TODO: Add error toast/notification
     }
-    
-    setGames(prev => [newGame, ...prev])
-    setNewGameName('')
-    setShowCreateModal(false)
-    
-    // Navigate to game
-    // navigate(`/game/${newGame.id}`)
   }
 
-  const handleJoinGame = (gameId: string) => {
-    // TODO: Join game in Firebase and navigate to game screen
-    console.log('Joining game:', gameId)
-    // navigate(`/game/${gameId}`)
+  const handleJoinGame = async (gameId: string) => {
+    if (!user) return
+
+    try {
+      const gameRef = doc(db, 'games', gameId)
+      await updateDoc(gameRef, {
+        players: arrayUnion(user.email || user.uid)
+      })
+      
+      // Navigate to the game
+      navigate(`/game/${gameId}`)
+    } catch (error) {
+      console.error('Error joining game:', error)
+      // TODO: Add error toast/notification
+    }
   }
 
   const handleViewHistory = () => {
-    // TODO: Navigate to game history page
-    console.log('View game history')
-    // navigate('/history')
+    setShowHistory(!showHistory)
+    setLoading(true) // Show loading while switching views
   }
 
   const handleLogout = async () => {
@@ -164,7 +197,7 @@ const GameLobby = () => {
               variant="outline"
               className="w-full border-2 border-yellow-400 text-yellow-500 hover:bg-yellow-400/20 hover:text-yellow-100 py-3 text-lg transition-colors"
             >
-              View Game History
+              {showHistory ? 'View Active Games' : 'View Game History'}
             </Button>
             
             <div className="text-center text-yellow-100/80 italic text-sm mt-6">
@@ -173,11 +206,11 @@ const GameLobby = () => {
           </CardContent>
         </Card>
 
-        {/* Right Panel - Active Games */}
+        {/* Right Panel - Active Games / Game History */}
         <Card className="bg-green-800/80 border-2 border-green-600 text-white shadow-xl">
           <CardHeader>
-            <CardTitle className="text-2xl text-center text-yellow-100 font-serif">
-              Active Games
+            <CardTitle className="text-2xl text-center text-yellow-500 font-serif">
+              {showHistory ? 'Game History' : 'Active Games'}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -191,7 +224,10 @@ const GameLobby = () => {
               </div>
             ) : games.length === 0 ? (
               <div className="text-center text-yellow-100/60 py-8">
-                No active games. Create one to get started!
+                {showHistory 
+                  ? "No completed games yet. Start playing to build your history!"
+                  : "No active games. Create one to get started!"
+                }
               </div>
             ) : (
               <div className="space-y-3 max-h-96 overflow-y-auto">
@@ -205,15 +241,28 @@ const GameLobby = () => {
                         {game.name}
                       </h3>
                       <p className="text-green-200 text-sm">
-                        Players: {game.players}/{game.maxPlayers} | Bet: {game.bet}
+                        {showHistory ? (
+                          <>
+                            Players: {game.players.length} | Host: {game.createdBy}
+                            {game.winner && (
+                              <span className="text-yellow-300"> | Winner: {game.winner}</span>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            Players: {game.players.length} | Created by: {game.createdBy}
+                          </>
+                        )}
                       </p>
                     </div>
-                    <Button
-                      onClick={() => handleJoinGame(game.id)}
-                      className="bg-green-600 hover:bg-green-500 text-white px-6 transition-colors group-hover:scale-105 transform"
-                    >
-                      Join
-                    </Button>
+                    {!showHistory && (
+                      <Button
+                        onClick={() => handleJoinGame(game.id)}
+                        className="bg-green-600 hover:bg-green-500 text-white px-6 transition-colors group-hover:scale-105 transform"
+                      >
+                        Join
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>

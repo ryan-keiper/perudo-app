@@ -8,7 +8,7 @@ const App = () => {
     <Routes>
       <Route path="/" element={<Login />} />
       <Route
-      path="/game"
+      path="/gamelobby"
       element={
         <ProtectedRoute>
           <GameLobby />
