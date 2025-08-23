@@ -27,39 +27,54 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.141 0.005 285.823);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.141 0.005 285.823);
-  --primary: oklch(0.21 0.006 285.885);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted-foreground: oklch(0.552 0.016 285.938);
-  --accent: oklch(0.967 0.001 286.375);
-  --accent-foreground: oklch(0.21 0.006 285.885);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.92 0.004 286.32);
-  --input: oklch(0.92 0.004 286.32);
-  --ring: oklch(0.705 0.015 286.067);
+  
+  /* Pirates & Deception Theme - Light Mode */
+  --background: #F8FAFC;                    /* Pearl white */
+  --foreground: #0F172A;                    /* Midnight blue */
+  --card: #FFFFFF;                           /* Pure white */
+  --card-foreground: #1E3A8A;                /* Deep navy */
+  --primary: #DC2626;                        /* Crimson red - danger, bluffing */
+  --primary-foreground: #FFFFFF;             /* White on red */
+  --secondary: #1E3A8A;                      /* Deep navy */
+  --secondary-foreground: #F8FAFC;           /* Pearl white */
+  --muted-foreground: #475569;               /* Storm gray */
+  --accent: #F59E0B;                         /* Gold treasure */
+  --accent-foreground: #0F172A;              /* Midnight blue */
+  --destructive: #B91C1C;                    /* Blood red */
+  --border: #CBD5E1;                         /* Light gray */
+  --input: #E2E8F0;                          /* Lighter gray */
+  --ring: #DC2626;                           /* Crimson focus */
+  
+  /* Game-specific colors */
+  --success: #059669;                        /* Emerald for Calza success */
+  --warning: #D97706;                        /* Amber for warnings */
+  --copper: #B45309;                         /* Copper bronze for dice */
+  --sea-foam: #06B6D4;                       /* Sea foam for highlights */
 }
 
 .dark {
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.21 0.006 285.885);
-  --card-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.92 0.004 286.32);
-  --primary-foreground: oklch(0.21 0.006 285.885);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.552 0.016 285.938);
+  /* Pirates & Deception Theme - Dark Mode */
+  --background: #0F172A;                    /* Midnight blue */
+  --foreground: #F8FAFC;                    /* Pearl white */
+  --card: #1E293B;                          /* Darker navy */
+  --card-foreground: #F8FAFC;               /* Pearl white */
+  --primary: #EF4444;                       /* Brighter crimson for dark mode */
+  --primary-foreground: #FFFFFF;            /* White on red */
+  --secondary: #3B82F6;                     /* Brighter navy blue */
+  --secondary-foreground: #F8FAFC;          /* Pearl white */
+  --muted-foreground: #94A3B8;              /* Lighter storm gray */
+  --accent: #FBBf24;                        /* Brighter gold */
+  --accent-foreground: #0F172A;             /* Midnight blue */
+  --destructive: #DC2626;                   /* Bright blood red */
+  --border: #334155;                        /* Dark gray */
+  --input: #1E293B;                         /* Dark navy */
+  --ring: #EF4444;                          /* Bright crimson focus */
+  
+  /* Game-specific colors - Dark Mode */
+  --success: #10B981;                       /* Bright emerald */
+  --warning: #F59E0B;                       /* Bright amber */
+  --copper: #D97706;                        /* Bright copper */
+  --sea-foam: #22D3EE;                      /* Bright sea foam */
 }
 
 .card-overlay {

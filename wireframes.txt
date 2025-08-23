@@ -1,0 +1,275 @@
+PERUDO DICE GAME - MOBILE WIREFRAMES (375px width)
+=======================================================
+
+DESIGN THEME: Pirates & Deception
+- Crimson red (#DC2626) - Danger, bids, eliminations  
+- Deep navy (#1E3A8A) - Background, containers
+- Gold (#F59E0B) - Highlights, treasure, wins
+- Pearl white (#F8FAFC) - Text, cards
+
+=======================================================
+1. MAIN HUB SCREEN
+=======================================================
+
+┌─────────────────────────────────────────┐ 375px
+│ ⚓ PERUDO                    [👤 Profile] │ 
+├─────────────────────────────────────────┤
+│                                         │
+│        🏴‍☠️ TREASURE ISLAND 🏴‍☠️          │
+│                                         │
+│  ┌───────────────────────────────────┐   │
+│  │                                   │   │
+│  │    🎲 QUICK MATCH 🎲              │   │ <- Crimson bg, gold text
+│  │    Join random crew               │   │
+│  │                                   │   │
+│  └───────────────────────────────────┘   │
+│                                         │
+│  ┌───────────────────────────────────┐   │
+│  │                                   │   │
+│  │    ⚔️ CREATE GAME ⚔️               │   │ <- Navy bg, pearl text
+│  │    Start your own crew            │   │
+│  │                                   │   │
+│  └───────────────────────────────────┘   │
+│                                         │
+│  ┌───────────────────────────────────┐   │
+│  │                                   │   │
+│  │    🗺️ JOIN BY CODE 🗺️              │   │ <- Gold bg, navy text
+│  │    Enter treasure map code        │   │
+│  │                                   │   │
+│  └───────────────────────────────────┘   │
+│                                         │
+│                                         │
+│         🏆 LEADERBOARD 🏆               │ <- Clickable section
+│                                         │
+│  Captain RedBeard    🥇 1,247 gold      │
+│  First Mate Sarah    🥈 1,156 gold      │
+│  Buccaneer Mike      🥉 1,089 gold      │
+│                                         │
+│                                         │
+│         ⚙️ SETTINGS    📖 RULES          │ <- Bottom nav
+│                                         │
+└─────────────────────────────────────────┘
+
+ANNOTATIONS:
+- Header: Navy bg with gold anchor logo
+- Quick Match: Auto-matches with similar skill
+- Create Game: Opens lobby creation flow  
+- Join by Code: 6-digit alphanumeric input
+- Leaderboard: Weekly rankings with pirate ranks
+- Settings: Audio, notifications, account
+- Rules: How to play tutorial
+
+=======================================================
+2. GAME LOBBY SCREEN  
+=======================================================
+
+┌─────────────────────────────────────────┐
+│ [←] THE BLACK PEARL              [⚙️]   │ <- Game room name
+├─────────────────────────────────────────┤
+│                                         │
+│      🏴‍☠️ ASSEMBLING CREW 🏴‍☠️            │
+│                                         │
+│  Players: 3/6                          │ <- Gold text
+│                                         │
+│  ┌─────────────────────────────────────┐ │
+│  │ 👤 Captain Jack    🎯 Ready         │ │ <- Host crown
+│  │ ⭐ Host                             │ │
+│  └─────────────────────────────────────┘ │
+│                                         │
+│  ┌─────────────────────────────────────┐ │
+│  │ 👤 Anne Bonny      ⏳ Joining...    │ │ <- Pearl bg for you
+│  │ 🫵 You                              │ │
+│  └─────────────────────────────────────┘ │
+│                                         │
+│  ┌─────────────────────────────────────┐ │
+│  │ 👤 Blackbeard      🎯 Ready         │ │ <- Navy bg others
+│  │                                     │ │
+│  └─────────────────────────────────────┘ │
+│                                         │
+│  ┌─────────────────────────────────────┐ │
+│  │ + Waiting for pirates...            │ │ <- Dashed border
+│  └─────────────────────────────────────┘ │
+│                                         │
+│  ┌─────────────────────────────────────┐ │
+│  │ + Waiting for pirates...            │ │
+│  └─────────────────────────────────────┘ │
+│                                         │
+│  ┌─────────────────────────────────────┐ │
+│  │ + Waiting for pirates...            │ │
+│  └─────────────────────────────────────┘ │
+│                                         │
+│                                         │
+│  Share Code: PARROT                     │ <- Large, copyable
+│                                         │
+│  ┌─────────────────────────────────────┐ │
+│  │                                     │ │
+│  │         🚀 SET SAIL!                │ │ <- Start game (host only)
+│  │                                     │ │ <- Crimson bg when ready
+│  └─────────────────────────────────────┘ │
+│                                         │
+│         [📋 Copy Code] [🔗 Invite]       │ <- Share options
+│                                         │
+└─────────────────────────────────────────┘
+
+ANNOTATIONS:
+- Back arrow returns to hub
+- Settings: Game rules, rounds, difficulty
+- Player cards show status with pirate avatars
+- Host gets crown icon and start control
+- Your card highlighted in pearl
+- Share code prominent and copyable
+- Ready status shown with treasure chest icons
+- Start button only active when 3+ ready
+
+=======================================================
+3. GAME BOARD SCREEN (MAIN GAMEPLAY)
+=======================================================
+
+┌─────────────────────────────────────────┐
+│ Round 2/5    💀 Lives: ●●●○○    [⚙️]    │ <- Game status bar
+├─────────────────────────────────────────┤
+│                                         │
+│         🏴‍☠️ PIRATE CIRCLE 🏴‍☠️            │ <- Player positions
+│                                         │
+│      👤Jack        👤Anne               │
+│      🎲×4          🎲×3                 │ <- Dice count
+│      💭"4 Fours"    😤                   │ <- Last bid/emotion
+│                                         │
+│  👤Black    🎯 YOU    👤Silver           │
+│  🎲×5         🎲×4      🎲×2             │
+│  😐          💀×1      😰                │ <- Lives lost shown
+│                                         │
+│      👤Red                              │
+│      🎲×3                               │ <- Fewer players collapse up
+│      😠                                 │
+│                                         │
+│─────────────────────────────────────────│
+│                                         │
+│         📊 DICE SUMMARY 📊              │ <- Central info panel
+│                                         │
+│  Current Bid: "6 Threes" by Jack       │ <- Gold highlight
+│                                         │
+│  🎲 Total Dice on Table: 21             │
+│                                         │
+│  ┌─────────────────────────────────────┐ │
+│  │ Last Round Results:                 │ │ <- Collapsible history
+│  │ Anne bid "3 Sixes" - CHALLENGED!   │ │
+│  │ Actual count: 2 Sixes 🎲           │ │ <- Red for failed
+│  │ Anne loses a life! 💀               │ │
+│  └─────────────────────────────────────┘ │
+│                                         │
+│─────────────────────────────────────────│
+│                                         │
+│           🎲 YOUR DICE 🎲               │ <- Your dice area
+│                                         │
+│      [🎲2] [🎲4] [🎲1] [🎲6]            │ <- Large, clear dice
+│                                         │ <- Crimson for 1s (wilds)
+│─────────────────────────────────────────│
+│                                         │
+│         ⚔️ ACTION PANEL ⚔️               │ <- Control area
+│                                         │
+│  ┌─────────────────┬─────────────────┐   │
+│  │   🎯 MAKE BID   │  ⚡ CHALLENGE   │   │ <- Two main actions
+│  │                 │                 │   │ <- Navy bg / Crimson bg
+│  └─────────────────┴─────────────────┘   │
+│                                         │
+│  Choose Face: [1] [2] [3] [4] [5] [6]   │ <- Dice face selector
+│                                         │ <- Gold for 1s (wilds)
+│  Choose Count: [- 7 +]                  │ <- Quantity stepper
+│                                         │ <- Must be higher than current
+│                                         │
+│         Your Bid: "7 Twos"              │ <- Preview of bid
+│                                         │
+│  ┌─────────────────────────────────────┐ │
+│  │                                     │ │
+│  │        🏴‍☠️ SUBMIT BID! 🏴‍☠️           │ │ <- Confirm button
+│  │                                     │ │ <- Disabled until valid
+│  └─────────────────────────────────────┘ │
+│                                         │
+└─────────────────────────────────────────┘
+
+ANNOTATIONS:
+- Top bar: Round progress, your lives remaining
+- Player circle: Shows all players with dice counts
+- Emotions: React to bids (confident, worried, etc)
+- Dice summary: Current game state and history
+- Your dice: Always visible, 1s highlighted as wilds
+- Action panel: Make bid or challenge previous
+- Face selector: 1s show as gold (wilds/aces)
+- Count must exceed current bid quantity
+- Submit only enabled with valid bid
+
+=======================================================
+INTERACTIVE ELEMENTS & BEHAVIORS
+=======================================================
+
+MAIN HUB:
+- Buttons: Scale on tap, haptic feedback
+- Leaderboard: Pull to refresh, tap to view profile
+- Settings: Slide in from right
+
+GAME LOBBY:
+- Player cards: Show join/leave animations
+- Copy code: Show toast confirmation
+- Ready toggle: Shake animation when pressed
+- Start button: Pulse when all ready
+
+GAME BOARD:
+- Player avatars: Pulse on turn, dim when eliminated
+- Dice: Shake animation when revealed
+- Bid panel: Number steppers with haptic feedback
+- Challenge: Confirmation modal with dramatic animation
+- Results: Dice count-up animation with sound
+
+=======================================================
+RESPONSIVE CONSIDERATIONS
+=======================================================
+
+375px (Mobile):
+- Single column layout
+- Touch-friendly 44px minimum tap targets
+- Large text for readability
+- Simplified player circle
+
+768px (Tablet):
+- Expanded player circle with more details
+- Side-by-side action panels
+- Larger dice visualization
+- Chat panel option
+
+=======================================================
+ACCESSIBILITY NOTES
+=======================================================
+
+- High contrast ratios (navy/pearl, crimson/pearl)
+- Large text sizes (minimum 16px)
+- Icon + text labels for clarity
+- Voice-over friendly dice descriptions
+- Color-blind friendly (patterns + colors)
+- Haptic feedback for important actions
+
+=======================================================
+TECHNICAL IMPLEMENTATION NOTES
+=======================================================
+
+Components needed:
+- PlayerAvatar: Shows name, dice count, lives, emotion
+- DiceDisplay: Animated dice with face values
+- BidPanel: Face selector + count stepper
+- GameStatus: Round, lives, current bid
+- ActionButton: Themed button with states
+- Toast: Feedback messages
+- Modal: Confirmations and results
+
+State management:
+- Game state: Players, dice, current bid, round
+- UI state: Selected face, count, animations
+- User state: Own dice, lives, turn status
+
+Real-time updates:
+- Player joins/leaves lobby
+- Bid submissions
+- Challenge results
+- Game state changes
+
+=======================================================

@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import Login from './pages/Login';
+import MainHub from './pages/MainHub';
 import GameLobby from './pages/GameLobby';
 import PerudoGame from './pages/PerudoGame';
 import ProtectedRoute from './routes/ProtectedRoute';
@@ -9,7 +10,15 @@ const App = () => {
     <Routes>
       <Route path="/" element={<Login />} />
       <Route
-        path="/gamelobby"
+        path="/main-hub"
+        element={
+          <ProtectedRoute>
+            <MainHub />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/game-lobby/:gameId"
         element={
           <ProtectedRoute>
             <GameLobby />
