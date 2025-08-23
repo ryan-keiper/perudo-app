@@ -5,7 +5,7 @@ import {
   createUserWithEmailAndPassword
 } from 'firebase/auth'
 import { auth } from '../firebase/firebase'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth-hooks'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -39,7 +39,7 @@ const Login = () => {
   // Redirect if already logged in
   useEffect(() => {
     if (!loading && user) {
-      navigate('/gamelobby')
+      navigate('/main-hub')
     }
   }, [loading, user, navigate])
 
@@ -57,9 +57,9 @@ const Login = () => {
       } else {
         await signInWithEmailAndPassword(auth, email, password)
       }
-      navigate('/gamelobby')
-    } catch (err: any) {
-      setError(err.message)
+      navigate('/main-hub')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
     }
   }
 
