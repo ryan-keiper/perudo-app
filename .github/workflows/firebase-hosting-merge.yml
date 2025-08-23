@@ -5,9 +5,8 @@ name: Deploy to Firebase Hosting on merge
 on:
   push:
     branches:
-      - main
-      - new-redesign  # Deploy from redesign branch too
-  workflow_dispatch:  # allows manual triggers
+      - main  # Only auto-deploy from main
+  workflow_dispatch:  # allows manual triggers from any branch
 
 jobs:
   build_and_deploy:
