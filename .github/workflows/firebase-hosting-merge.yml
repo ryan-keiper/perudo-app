@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - new-redesign  # Deploy from redesign branch too
   workflow_dispatch:  # allows manual triggers
 
 jobs:

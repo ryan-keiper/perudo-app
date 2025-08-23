@@ -28,13 +28,16 @@ const DiceArea = ({
   });
   
   const [isRolling, setIsRolling] = useState(false);
-  const [completedRolls, setCompletedRolls] = useState(0);
 
   useEffect(() => {
     // Auto roll on mount if specified
     if (autoRoll && !isRolling) {
-      handleRoll();
+      setIsRolling(true);
+      setTimeout(() => {
+        // Animation will complete in AnimatedDie components
+      }, 100);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoRoll]);
 
   useEffect(() => {
@@ -54,13 +57,13 @@ const DiceArea = ({
         }
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [diceCount]);
 
   const handleRoll = () => {
     if (disabled || isRolling) return;
     
     setIsRolling(true);
-    setCompletedRolls(0);
     
     // Start rolling animation
     setTimeout(() => {
@@ -72,22 +75,18 @@ const DiceArea = ({
     setDiceValues(prev => {
       const newValues = [...prev];
       newValues[index] = value;
-      return newValues;
-    });
-    
-    setCompletedRolls(prev => {
-      const newCount = prev + 1;
       
-      // All dice have finished rolling
-      if (newCount === diceCount) {
+      // Check if all dice have finished rolling
+      const completedCount = newValues.filter((_, i) => i <= index).length;
+      if (completedCount === diceCount) {
         setIsRolling(false);
         // Get final values and notify parent
         setTimeout(() => {
-          onRollComplete?.(diceValues);
+          onRollComplete?.(newValues);
         }, 100);
       }
       
-      return newCount;
+      return newValues;
     });
   };
 

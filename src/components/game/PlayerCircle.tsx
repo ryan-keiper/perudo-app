@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dices, Star, Crown, Ghost, Skull, Clock } from 'lucide-react';
+import { Dices, Star, Crown, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Player {

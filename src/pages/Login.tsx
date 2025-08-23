@@ -5,7 +5,7 @@ import {
   createUserWithEmailAndPassword
 } from 'firebase/auth'
 import { auth } from '../firebase/firebase'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/auth-hooks'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -58,8 +58,8 @@ const Login = () => {
         await signInWithEmailAndPassword(auth, email, password)
       }
       navigate('/main-hub')
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
     }
   }
 

@@ -1,15 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Dices,
   ArrowUp,
   ArrowDown,
-  Trophy,
-  Skull,
-  Ghost,
   Star,
   AlertCircle,
   ArrowLeft,
@@ -37,10 +33,9 @@ interface GameState {
 const PerudoGame = () => {
   const navigate = useNavigate();
   const { gameId } = useParams();
-  const { user } = useAuth();
   
   // Mock game state
-  const [players, setPlayers] = useState<Player[]>([
+  const [players] = useState<Player[]>([
     { id: '1', name: 'You', diceCount: 5, calzaCount: 2, status: 'alive', isActive: true, dice: [1, 3, 3, 5, 6] },
     { id: '2', name: 'Chris', diceCount: 3, calzaCount: 1, status: 'alive', isActive: false },
     { id: '3', name: 'Showrunner', diceCount: 5, calzaCount: 0, status: 'alive', isActive: false },
