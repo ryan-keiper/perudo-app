@@ -89,3 +89,45 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Dice rolling animation */
+@keyframes shake {
+  0%, 100% { 
+    transform: translateX(0) translateY(0) rotate(0deg) scale(1);
+  }
+  10% { 
+    transform: translateX(-3px) translateY(-2px) rotate(-8deg) scale(1.02);
+  }
+  20% { 
+    transform: translateX(4px) translateY(1px) rotate(12deg) scale(0.98);
+  }
+  30% { 
+    transform: translateX(-2px) translateY(-4px) rotate(-6deg) scale(1.04);
+  }
+  40% { 
+    transform: translateX(5px) translateY(2px) rotate(15deg) scale(0.96);
+  }
+  50% { 
+    transform: translateX(-4px) translateY(-3px) rotate(-10deg) scale(1.03);
+  }
+  60% { 
+    transform: translateX(2px) translateY(1px) rotate(8deg) scale(0.99);
+  }
+  70% { 
+    transform: translateX(-1px) translateY(-5px) rotate(-4deg) scale(1.02);
+  }
+  80% { 
+    transform: translateX(3px) translateY(3px) rotate(10deg) scale(0.98);
+  }
+  90% { 
+    transform: translateX(-2px) translateY(-2px) rotate(-6deg) scale(1.01);
+  }
+}
+
+.animate-shake {
+  animation: shake 0.15s infinite;
+}
+
+.dice-rolling {
+  filter: brightness(1.1) saturate(1.1);
+}

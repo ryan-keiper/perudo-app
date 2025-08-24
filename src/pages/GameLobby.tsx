@@ -106,7 +106,7 @@ const GameLobby = () => {
       setIsJoining(true);
       try {
         const userName = profile?.nickname || user.email.split('@')[0];
-        const result = await joinGame(roomCode, user.email, userName);
+        const result = await joinGame(roomCode, user.email, userName, profile?.nickname, user.uid);
         setHasJoined(true);
         
         // If game is already active, navigate directly to game screen

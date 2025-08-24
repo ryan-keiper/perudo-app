@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import type { DocumentData, QuerySnapshot } from 'firebase/firestore';
 import { db } from '@/firebase/firebase';
+import { getUserProfile } from './firebase-user';
 
 // Type definitions
 export interface GamePlayer {
@@ -21,6 +22,7 @@ export interface GamePlayer {
   name: string;
   email: string;
   nickname?: string;
+  avatar?: string;
   diceCount: number;
   currentDice: number[];
   calzaCount: number;
@@ -137,7 +139,8 @@ export const joinGame = async (
   gameCode: string, 
   playerEmail: string, 
   playerName: string,
-  nickname?: string
+  nickname?: string,
+  uid?: string
 ): Promise<{ joined: boolean; isActive: boolean }> => {
   try {
     // Find game by code (both waiting and active)
@@ -184,12 +187,24 @@ export const joinGame = async (
       currentRoundDice: {}
     };
     
+    // Fetch player's avatar from their profile
+    let playerAvatar: string | undefined;
+    if (uid) {
+      try {
+        const profile = await getUserProfile(uid);
+        playerAvatar = profile?.avatar;
+      } catch (error) {
+        console.warn('Could not fetch player avatar:', error);
+      }
+    }
+    
     // Add player to game state
     updatedGameState.players[playerEmail] = {
       id: playerEmail,
       name: playerName,
       email: playerEmail,
       nickname: nickname || playerName,
+      avatar: playerAvatar,
       diceCount: gameData.settings?.startingDice || 5,
       currentDice: [],
       calzaCount: 0,

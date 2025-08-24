@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/context/auth-hooks';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { GameBoard } from '@/components/ui/game-board';
+import { Dice } from '@/components/ui/dice';
 import { 
   subscribeToActiveGames,
   leaveGame as leaveGameInFirebase,
@@ -214,26 +216,16 @@ const PerudoGame = () => {
   };
 
   const rollDice = () => {
-    // Dice are rolled automatically by Firebase when round starts
-    // This is just for visual effect during development
-    if (myDice.length === 0) {
-      setIsRolling(true);
-      setTimeout(() => {
-        const newDice = Array.from({ length: 5 }, () => Math.floor(Math.random() * 6) + 1);
-        setMyDice(newDice);
-        setIsRolling(false);
-      }, 1200);
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch(status) {
-      case 'ghost': return '👻';
-      case 'zombie': return '🧟';
-      case 'dead': return '☠️';
-      case 'disconnected': return '🔌';
-      default: return '';
-    }
+    // Roll dice with animation
+    setIsRolling(true);
+    
+    // Generate new random dice values after animation completes
+    setTimeout(() => {
+      const diceCount = myPlayer?.diceCount || 5;
+      const newDice = Array.from({ length: diceCount }, () => Math.floor(Math.random() * 6) + 1);
+      setMyDice(newDice);
+      // isRolling will be set to false by the onRollComplete callback
+    }, 1800); // Match the dice animation duration
   };
 
   const expectedValues = calculateExpectedValues();
@@ -299,44 +291,14 @@ const PerudoGame = () => {
       </div>
 
       <main className="container mx-auto px-4 py-4 max-w-6xl">
-        {/* Players Circle */}
+        {/* Game Board */}
         <div className="mb-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">The Board</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {players.map((player) => (
-                  <div
-                    key={player.id}
-                    className={`p-3 rounded-lg border-2 transition-all ${
-                      currentGame?.gameState?.currentPlayerId === player.email
-                        ? 'border-accent shadow-lg shadow-accent/20' 
-                        : 'border-border'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="font-medium text-sm">{player.nickname || player.name}</div>
-                      {player.status !== 'alive' && (
-                        <span className="text-lg">{getStatusIcon(player.status)}</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 text-xs">
-                      <div className="flex items-center gap-1">
-                        <Dices className="size-3 text-muted-foreground" />
-                        <span>{player.diceCount}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Star className="size-3 text-accent" />
-                        <span>{player.calzaCount}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <GameBoard
+            players={players}
+            currentPlayerId={currentGame?.gameState?.currentPlayerId}
+            currentUserEmail={user?.email}
+            revealedDice={gameState.revealedDice}
+          />
         </div>
 
         {/* Current Bid */}
@@ -345,8 +307,9 @@ const PerudoGame = () => {
             <CardContent className="py-3">
               <div className="text-center">
                 <div className="text-sm text-muted-foreground mb-1">Current Bid</div>
-                <div className="text-2xl font-bold text-primary">
-                  {gameState.currentBid.count} × {['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][gameState.currentBid.value - 1]}
+                <div className="flex items-center justify-center gap-2 text-2xl font-bold text-primary">
+                  <span>{gameState.currentBid.count} ×</span>
+                  <Dice value={gameState.currentBid.value as 1 | 2 | 3 | 4 | 5 | 6} size="md" />
                 </div>
               </div>
             </CardContent>
@@ -362,8 +325,8 @@ const PerudoGame = () => {
             <div className="grid grid-cols-6 gap-2 text-center">
               {expectedValues.map((ev) => (
                 <div key={ev.value} className="space-y-1">
-                  <div className="text-lg">
-                    {['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][ev.value - 1]}
+                  <div className="flex justify-center">
+                    <Dice value={ev.value as 1 | 2 | 3 | 4 | 5 | 6} size="sm" />
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {ev.base}
@@ -392,16 +355,31 @@ const PerudoGame = () => {
           </CardHeader>
           <CardContent>
             <div className="flex justify-center gap-2">
-              {myDice.map((die, index) => (
-                <div
-                  key={index}
-                  className={`size-12 bg-[var(--copper)] rounded-lg flex items-center justify-center text-2xl text-white font-bold transition-transform ${
-                    isRolling ? 'animate-spin' : ''
-                  }`}
-                >
-                  {['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][die - 1]}
-                </div>
-              ))}
+              {myDice.length > 0 ? (
+                myDice.map((die, index) => (
+                  <Dice
+                    key={index}
+                    value={die as 1 | 2 | 3 | 4 | 5 | 6}
+                    size="lg"
+                    isRolling={isRolling}
+                    onRollComplete={(newValue) => {
+                      if (isRolling && index === myDice.length - 1) {
+                        setIsRolling(false);
+                      }
+                    }}
+                  />
+                ))
+              ) : (
+                // Show placeholder dice when no dice rolled yet
+                Array.from({ length: myPlayer?.diceCount || 5 }, (_, i) => (
+                  <Dice
+                    key={i}
+                    value={1}
+                    isHidden={true}
+                    size="lg"
+                  />
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
@@ -443,9 +421,9 @@ const PerudoGame = () => {
                         size="sm"
                         variant={selectedValue === val ? "default" : "outline"}
                         onClick={() => setSelectedValue(val)}
-                        className="text-lg p-1"
+                        className="p-1 h-auto"
                       >
-                        {['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][val - 1]}
+                        <Dice value={val as 1 | 2 | 3 | 4 | 5 | 6} size="sm" className="pointer-events-none" />
                       </Button>
                     ))}
                   </div>
