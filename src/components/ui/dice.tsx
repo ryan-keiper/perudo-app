@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
+import diceSprites from '@/assets/dice_sprites.png';
 
 const diceVariants = cva(
   'dice relative inline-block transition-all cursor-pointer',
@@ -208,7 +209,7 @@ export function Dice({
       onClick={onClick}
       style={{
         borderRadius: `${config.borderRadius}px`,
-        backgroundImage: isHidden ? 'none' : `url('/src/assets/dice_sprites.png')`,
+        backgroundImage: isHidden ? 'none' : `url('${diceSprites}')`,
         backgroundSize: `${config.bgSizeWidth}px ${config.bgSizeHeight}px`,
         backgroundPosition: isHidden ? 'center' : `${position.x}px ${position.y}px`,
         backgroundRepeat: 'no-repeat',
