@@ -20,8 +20,7 @@ import {
   Star,
   AlertCircle,
   ArrowLeft,
-  Anchor,
-  Plug
+  Anchor
 } from 'lucide-react';
 
 interface GameState {

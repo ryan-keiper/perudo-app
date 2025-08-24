@@ -124,7 +124,7 @@ export const createGame = async (hostEmail: string, hostName: string): Promise<s
       }
     };
     
-    const docRef = await addDoc(collection(db, 'games'), gameData);
+    await addDoc(collection(db, 'games'), gameData);
     return roomCode;
   } catch (error) {
     console.error('Error creating game:', error);
@@ -712,7 +712,7 @@ const startNewRound = async (
   await updateDoc(gameRef, {
     status: gameData.status,
     winner: gameData.winner,
-    gameState: gameData.gameState,
+    gameState: gameData.gameState as any,
     updatedAt: serverTimestamp()
   });
 };
