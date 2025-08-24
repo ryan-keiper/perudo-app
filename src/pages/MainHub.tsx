@@ -1,27 +1,40 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/auth-hooks';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { auth } from '@/firebase/firebase';
 import { signOut } from 'firebase/auth';
+import { createGame, subscribeToActiveGames, type Game } from '@/lib/firebase-game';
 import { 
-  Dices, 
   Trophy, 
   Users, 
   Plus, 
   LogOut, 
   Star,
   Anchor,
-  Ship
+  Ship,
+  Clock,
+  User,
+  Loader2
 } from 'lucide-react';
 
 const MainHub = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [joinCode, setJoinCode] = useState('');
-  const [showJoinInput, setShowJoinInput] = useState(false);
+  const [activeGames, setActiveGames] = useState<Game[]>([]);
+  const [isCreatingGame, setIsCreatingGame] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Subscribe to active games
+  useEffect(() => {
+    const unsubscribe = subscribeToActiveGames((games) => {
+      setActiveGames(games);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const handleSignOut = async () => {
     try {
@@ -32,21 +45,31 @@ const MainHub = () => {
     }
   };
 
-  const handleCreateGame = () => {
-    // TODO: Create game in Firebase and navigate to lobby
-    navigate('/game-lobby/new');
-  };
-
-  const handleJoinGame = () => {
-    if (joinCode) {
-      // TODO: Validate game code exists in Firebase
-      navigate(`/game-lobby/${joinCode}`);
+  const handleCreateGame = async () => {
+    if (!user?.email || isCreatingGame) return;
+    
+    setIsCreatingGame(true);
+    try {
+      const hostName = user.email.split('@')[0];
+      const roomCode = await createGame(user.email, hostName);
+      console.log('Created game with code:', roomCode);
+      // Game will appear in list via real-time subscription
+    } catch (error) {
+      console.error('Error creating game:', error);
+      // TODO: Show error toast
+    } finally {
+      setIsCreatingGame(false);
     }
   };
 
-  const handleQuickMatch = () => {
-    // TODO: Find or create public game
-    navigate('/game-lobby/quick');
+  const handleJoinGame = (game: Game) => {
+    // For active games where user is already a player, go directly to game
+    if (game.status === 'active' && user?.email && game.players.includes(user.email)) {
+      navigate(`/game/${game.code}`);
+    } else {
+      // Otherwise go to lobby (for waiting games or new players)
+      navigate(`/game-lobby/${game.code}`);
+    }
   };
 
   return (
@@ -80,94 +103,6 @@ const MainHub = () => {
           <p className="text-muted-foreground">
             Ready to test your luck and deception skills?
           </p>
-        </div>
-
-        {/* Game Actions Grid */}
-        <div className="grid gap-4 md:grid-cols-3 mb-8">
-          {/* Quick Match */}
-          <Card 
-            className="cursor-pointer hover:border-primary transition-all hover:shadow-lg group"
-            onClick={handleQuickMatch}
-          >
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Dices className="size-5 text-primary group-hover:rotate-12 transition-transform" />
-                Quick Match
-              </CardTitle>
-              <CardDescription>
-                Jump into a public game
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-primary">Play Now</div>
-              <p className="text-sm text-muted-foreground">Find opponents instantly</p>
-            </CardContent>
-          </Card>
-
-          {/* Create Private Game */}
-          <Card 
-            className="cursor-pointer hover:border-accent transition-all hover:shadow-lg group"
-            onClick={handleCreateGame}
-          >
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plus className="size-5 text-accent group-hover:scale-110 transition-transform" />
-                Create Game
-              </CardTitle>
-              <CardDescription>
-                Host a private room
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-accent">New Room</div>
-              <p className="text-sm text-muted-foreground">Invite your crew</p>
-            </CardContent>
-          </Card>
-
-          {/* Join Game */}
-          <Card 
-            className={`transition-all hover:shadow-lg ${showJoinInput ? 'border-secondary' : 'hover:border-secondary'} group`}
-            onClick={() => !showJoinInput && setShowJoinInput(true)}
-          >
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Ship className="size-5 text-secondary group-hover:animate-bounce" />
-                Join Game
-              </CardTitle>
-              <CardDescription>
-                Enter a room code
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {showJoinInput ? (
-                <div className="space-y-2">
-                  <Input
-                    placeholder="ABCD"
-                    value={joinCode}
-                    onChange={(e) => setJoinCode(e.target.value.toUpperCase().slice(0, 4))}
-                    maxLength={4}
-                    className="text-center text-lg font-mono"
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                  <Button 
-                    className="w-full" 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleJoinGame();
-                    }}
-                    disabled={joinCode.length !== 4}
-                  >
-                    Join Room
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  <div className="text-2xl font-bold text-secondary">Join Room</div>
-                  <p className="text-sm text-muted-foreground">Enter room code</p>
-                </>
-              )}
-            </CardContent>
-          </Card>
         </div>
 
         {/* Stats Section */}
@@ -245,18 +180,88 @@ const MainHub = () => {
         {/* Active Games */}
         <Card className="mt-4">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="size-5 text-secondary" />
-              Active Games
-            </CardTitle>
-            <CardDescription>
-              Your ongoing matches
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="size-5 text-secondary" />
+                  Active Games
+                </CardTitle>
+                <CardDescription>
+                  Join your crew's ongoing adventures
+                </CardDescription>
+              </div>
+              <Button
+                onClick={handleCreateGame}
+                disabled={isCreatingGame}
+                className="gap-2 bg-accent hover:bg-accent/90"
+              >
+                {isCreatingGame ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Plus className="size-4" />
+                )}
+                Create Game
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-center py-8 text-muted-foreground">
-              No active games. Start a new adventure!
-            </div>
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="size-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : activeGames.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                No active games. Create one to start the adventure!
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {activeGames.map((game) => (
+                  <Card 
+                    key={game.id}
+                    className="border-secondary/50 hover:border-secondary transition-all"
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="text-lg font-mono font-bold text-accent">
+                              {game.code}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              Room Code
+                            </div>
+                            {game.status === 'active' && (
+                              <div className="flex items-center gap-1 text-[var(--warning)] text-sm">
+                                <Clock className="size-3" />
+                                In Progress
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <User className="size-3" />
+                              <span>Host: {game.host}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Users className="size-3" />
+                              <span>{game.playerCount}/{game.maxPlayers} players</span>
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          onClick={() => handleJoinGame(game)}
+                          variant="outline"
+                          className="gap-2 group border-secondary hover:bg-secondary hover:text-secondary-foreground"
+                        >
+                          <Ship className="size-4 group-hover:animate-bounce" />
+                          {game.status === 'active' && user?.email && game.players.includes(user.email) ? 'Rejoin Game' : 'Join Game'}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>

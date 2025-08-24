@@ -1,7 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '@/context/auth-hooks';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { 
+  subscribeToActiveGames,
+  leaveGame as leaveGameInFirebase,
+  reconnectToGame,
+  makeBid,
+  callDudo as callDudoInFirebase,
+  callCalza as callCalzaInFirebase,
+  type Game,
+  type GamePlayer
+} from '@/lib/firebase-game';
 import { 
   Dices,
   ArrowUp,
@@ -9,18 +20,9 @@ import {
   Star,
   AlertCircle,
   ArrowLeft,
-  Anchor
+  Anchor,
+  Plug
 } from 'lucide-react';
-
-interface Player {
-  id: string;
-  name: string;
-  diceCount: number;
-  calzaCount: number;
-  status: 'alive' | 'ghost' | 'zombie' | 'dead';
-  isActive: boolean;
-  dice?: number[];
-}
 
 interface GameState {
   currentBid: { count: number; value: number } | null;
@@ -33,27 +35,89 @@ interface GameState {
 const PerudoGame = () => {
   const navigate = useNavigate();
   const { gameId } = useParams();
+  const { user } = useAuth();
   
-  // Mock game state
-  const [players] = useState<Player[]>([
-    { id: '1', name: 'You', diceCount: 5, calzaCount: 2, status: 'alive', isActive: true, dice: [1, 3, 3, 5, 6] },
-    { id: '2', name: 'Chris', diceCount: 3, calzaCount: 1, status: 'alive', isActive: false },
-    { id: '3', name: 'Showrunner', diceCount: 5, calzaCount: 0, status: 'alive', isActive: false },
-    { id: '4', name: 'Christian', diceCount: 4, calzaCount: 3, status: 'alive', isActive: false },
-    { id: '5', name: 'Denis', diceCount: 2, calzaCount: 1, status: 'alive', isActive: false },
-  ]);
+  const [currentGame, setCurrentGame] = useState<Game | null>(null);
+  const [players, setPlayers] = useState<GamePlayer[]>([]);
+  const [isReconnecting, setIsReconnecting] = useState(false);
 
   const [gameState, setGameState] = useState<GameState>({
-    currentBid: { count: 5, value: 6 },
-    totalDice: players.reduce((sum, p) => sum + p.diceCount, 0),
+    currentBid: null,
+    totalDice: 0,
     isPalifico: false,
     roundDirection: 'up'
   });
 
   const [selectedCount, setSelectedCount] = useState(1);
   const [selectedValue, setSelectedValue] = useState(1);
-  const [myDice, setMyDice] = useState([1, 3, 3, 5, 6]);
+  const [myDice, setMyDice] = useState<number[]>([]);
   const [isRolling, setIsRolling] = useState(false);
+
+  const roomCode = gameId?.toUpperCase() || '';
+  const myPlayer = players.find(p => p.email === user?.email);
+  const isDisconnected = myPlayer?.status === 'disconnected';
+
+  // Subscribe to game updates
+  useEffect(() => {
+    if (!roomCode) return;
+
+    const unsubscribe = subscribeToActiveGames((games) => {
+      const game = games.find(g => g.code === roomCode);
+      if (game) {
+        setCurrentGame(game);
+        
+        // Extract players and game state
+        if (game.gameState?.players) {
+          const playerList = Object.values(game.gameState.players);
+          setPlayers(playerList);
+          
+          // Update total dice count
+          const totalDice = playerList
+            .filter(p => p.status === 'alive' || p.status === 'disconnected')
+            .reduce((sum, p) => sum + p.diceCount, 0);
+          
+          setGameState(prev => ({
+            ...prev,
+            totalDice,
+            isPalifico: game.gameState?.isPalifico || false,
+            currentBid: game.gameState?.currentWager || null
+          }));
+          
+          // Set my dice if available
+          const me = playerList.find(p => p.email === user?.email);
+          if (me?.currentDice && me.currentDice.length > 0) {
+            setMyDice(me.currentDice);
+          }
+        }
+      } else {
+        // Game doesn't exist, go back to main hub
+        navigate('/main-hub');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [roomCode, navigate, user]);
+
+  // Auto-reconnect if disconnected
+  useEffect(() => {
+    const handleReconnect = async () => {
+      if (isDisconnected && currentGame?.id && user?.email && !isReconnecting) {
+        setIsReconnecting(true);
+        try {
+          await reconnectToGame(currentGame.id, user.email);
+        } catch (error) {
+          console.error('Error reconnecting:', error);
+        } finally {
+          setIsReconnecting(false);
+        }
+      }
+    };
+
+    // Try to reconnect if disconnected
+    if (isDisconnected) {
+      handleReconnect();
+    }
+  }, [isDisconnected, currentGame, user, isReconnecting]);
 
   // Calculate expected values
   const calculateExpectedValues = () => {
@@ -76,43 +140,69 @@ const PerudoGame = () => {
     return values;
   };
 
-  const handleBid = () => {
-    // TODO: Submit bid to Firebase
-    setGameState(prev => ({
-      ...prev,
-      currentBid: { count: selectedCount, value: selectedValue }
-    }));
+  const handleBid = async () => {
+    if (!currentGame?.id || !user?.email) return;
+    
+    try {
+      await makeBid(currentGame.id, user.email, selectedCount, selectedValue);
+    } catch (error) {
+      console.error('Error making bid:', error);
+      // TODO: Show error toast
+    }
   };
 
-  const handleDudo = () => {
-    // TODO: Call dudo in Firebase
-    console.log('Dudo called!');
+  const handleDudo = async () => {
+    if (!currentGame?.id || !user?.email) return;
+    
+    try {
+      await callDudoInFirebase(currentGame.id, user.email);
+    } catch (error) {
+      console.error('Error calling dudo:', error);
+      // TODO: Show error toast
+    }
   };
 
-  const handleCalza = () => {
-    // TODO: Call calza in Firebase
-    console.log('Calza called!');
+  const handleCalza = async () => {
+    if (!currentGame?.id || !user?.email) return;
+    
+    try {
+      await callCalzaInFirebase(currentGame.id, user.email);
+    } catch (error) {
+      console.error('Error calling calza:', error);
+      // TODO: Show error toast
+    }
   };
 
-  const handleLeaveGame = () => {
+  const handleLeaveGame = async () => {
+    if (currentGame?.id && user?.email) {
+      try {
+        await leaveGameInFirebase(currentGame.id, user.email);
+      } catch (error) {
+        console.error('Error leaving game:', error);
+      }
+    }
     navigate('/main-hub');
   };
 
   const rollDice = () => {
-    setIsRolling(true);
-    // Simulate dice roll
-    setTimeout(() => {
-      const newDice = Array.from({ length: 5 }, () => Math.floor(Math.random() * 6) + 1);
-      setMyDice(newDice);
-      setIsRolling(false);
-    }, 1200);
+    // Dice are rolled automatically by Firebase when round starts
+    // This is just for visual effect during development
+    if (myDice.length === 0) {
+      setIsRolling(true);
+      setTimeout(() => {
+        const newDice = Array.from({ length: 5 }, () => Math.floor(Math.random() * 6) + 1);
+        setMyDice(newDice);
+        setIsRolling(false);
+      }, 1200);
+    }
   };
 
-  const getStatusEmoji = (status: string) => {
+  const getStatusIcon = (status: string) => {
     switch(status) {
       case 'ghost': return '👻';
       case 'zombie': return '🧟';
       case 'dead': return '☠️';
+      case 'disconnected': return '🔌';
       default: return '';
     }
   };
@@ -179,15 +269,15 @@ const PerudoGame = () => {
                   <div
                     key={player.id}
                     className={`p-3 rounded-lg border-2 transition-all ${
-                      player.isActive 
+                      currentGame?.gameState?.currentPlayerId === player.email
                         ? 'border-accent shadow-lg shadow-accent/20' 
                         : 'border-border'
                     }`}
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <div className="font-medium text-sm">{player.name}</div>
+                      <div className="font-medium text-sm">{player.nickname || player.name}</div>
                       {player.status !== 'alive' && (
-                        <span className="text-lg">{getStatusEmoji(player.status)}</span>
+                        <span className="text-lg">{getStatusIcon(player.status)}</span>
                       )}
                     </div>
                     <div className="flex items-center gap-3 text-xs">
@@ -325,18 +415,21 @@ const PerudoGame = () => {
                 <Button
                   onClick={handleBid}
                   className="bg-secondary hover:bg-secondary/90"
+                  disabled={currentGame?.gameState?.currentPlayerId !== user?.email}
                 >
                   Bid
                 </Button>
                 <Button
                   onClick={handleDudo}
                   variant="destructive"
+                  disabled={!gameState.currentBid || currentGame?.gameState?.currentPlayerId !== user?.email}
                 >
                   Dudo!
                 </Button>
                 <Button
                   onClick={handleCalza}
                   className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                  disabled={!gameState.currentBid || currentGame?.gameState?.currentPlayerId !== user?.email || currentGame?.gameState?.currentWager?.playerId === user?.email}
                 >
                   Calza!
                 </Button>
