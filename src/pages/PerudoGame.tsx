@@ -301,41 +301,67 @@ const PerudoGame = () => {
           />
         </div>
 
-        {/* Current Bid */}
-        {gameState.currentBid && (
-          <Card className="mb-4 border-primary">
-            <CardContent className="py-3">
-              <div className="text-center">
-                <div className="text-sm text-muted-foreground mb-1">Current Bid</div>
-                <div className="flex items-center justify-center gap-2 text-2xl font-bold text-primary">
-                  <span>{gameState.currentBid.count} ×</span>
-                  <Dice value={gameState.currentBid.value as 1 | 2 | 3 | 4 | 5 | 6} size="md" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Expected Values */}
+        {/* Game Info - Combined Current Bid and Expected Values */}
         <Card className="mb-4">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Expected Values</CardTitle>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Game Info</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-6 gap-2 text-center">
-              {expectedValues.map((ev) => (
-                <div key={ev.value} className="space-y-1">
-                  <div className="flex justify-center">
-                    <Dice value={ev.value as 1 | 2 | 3 | 4 | 5 | 6} size="sm" />
+            <div className="grid grid-cols-5 gap-3">
+              {/* Current Bid Section - Left Side */}
+              <div className="col-span-2 border-r border-border/50 pr-3">
+                {gameState.currentBid ? (
+                  <div className="space-y-1">
+                    <div className="text-xs text-muted-foreground">Current Bid:</div>
+                    <div className="flex items-center gap-1 font-bold text-primary">
+                      <span className="text-lg">{gameState.currentBid.count} ×</span>
+                      <Dice value={gameState.currentBid.value as 1 | 2 | 3 | 4 | 5 | 6} size="sm" />
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      From: {(() => {
+                        const bidPlayer = players.find(p => p.id === currentGame?.gameState?.currentWager?.playerId);
+                        return bidPlayer?.nickname || bidPlayer?.name || 'Unknown';
+                      })()}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Next: {(() => {
+                        const currentPlayerIndex = players.findIndex(p => p.id === currentGame?.gameState?.currentPlayerId);
+                        const nextPlayerIndex = (currentPlayerIndex + 1) % players.length;
+                        const nextPlayer = players[nextPlayerIndex];
+                        return nextPlayer?.nickname || nextPlayer?.name || 'Unknown';
+                      })()}
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    {ev.base}
+                ) : (
+                  <div className="flex items-center h-full">
+                    <div className="text-xs text-muted-foreground">
+                      No bid yet
+                      <br />
+                      {currentGame?.gameState?.phase === 'rolling' ? 'Rolling dice...' : 'Starting soon...'}
+                    </div>
                   </div>
-                  <div className="text-sm font-medium text-accent">
-                    {ev.adjusted}
-                  </div>
+                )}
+              </div>
+              
+              {/* Expected Values Section - Right Side */}
+              <div className="col-span-3">
+                <div className="text-xs text-muted-foreground mb-1">Expected Values</div>
+                <div className="grid grid-cols-6 gap-0.5 text-center">
+                  {expectedValues.map((ev) => (
+                    <div key={ev.value} className="space-y-0.5">
+                      <div className="flex justify-center">
+                        <Dice value={ev.value as 1 | 2 | 3 | 4 | 5 | 6} size="xs" />
+                      </div>
+                      <div className="text-[10px] leading-tight text-muted-foreground">
+                        {ev.base}
+                      </div>
+                      <div className="text-[11px] leading-tight font-medium text-accent">
+                        {ev.adjusted}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
             </div>
           </CardContent>
         </Card>
