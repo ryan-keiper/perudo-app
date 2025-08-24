@@ -21,7 +21,6 @@ import {
   Dices,
   ArrowUp,
   ArrowDown,
-  Star,
   AlertCircle,
   ArrowLeft,
   Anchor,
@@ -296,7 +295,7 @@ const PerudoGame = () => {
           <GameBoard
             players={players}
             currentPlayerId={currentGame?.gameState?.currentPlayerId}
-            currentUserEmail={user?.email}
+            currentUserEmail={user?.email || undefined}
             revealedDice={gameState.revealedDice}
           />
         </div>
@@ -388,7 +387,7 @@ const PerudoGame = () => {
                     value={die as 1 | 2 | 3 | 4 | 5 | 6}
                     size="lg"
                     isRolling={isRolling}
-                    onRollComplete={(newValue) => {
+                    onRollComplete={() => {
                       if (isRolling && index === myDice.length - 1) {
                         setIsRolling(false);
                       }
