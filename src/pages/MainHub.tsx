@@ -282,11 +282,23 @@ const MainHub = () => {
                 {activeGames.map((game) => (
                   <Card 
                     key={game.id}
-                    className="border-secondary/50 hover:border-secondary transition-all"
+                    className="border-secondary/50 hover:border-secondary transition-all relative"
                   >
+                    {/* Cancel button in top-right corner */}
+                    {game.hostEmail === user?.email && (
+                      <Button
+                        onClick={() => setCancelGameId(game.id || null)}
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 text-destructive hover:text-destructive hover:bg-destructive/10 z-10"
+                      >
+                        <X className="size-4" />
+                      </Button>
+                    )}
+                    
                     <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div className="flex-1 pr-8">
                           <div className="flex items-center gap-3 mb-2">
                             <div className="text-lg font-mono font-bold text-accent">
                               {game.code}
@@ -312,25 +324,15 @@ const MainHub = () => {
                             </div>
                           </div>
                         </div>
-                        <div className="flex gap-2">
+                        <div className="flex">
                           <Button
                             onClick={() => handleJoinGame(game)}
                             variant="outline"
-                            className="gap-2 group border-secondary hover:bg-secondary hover:text-secondary-foreground"
+                            className="gap-2 group border-secondary hover:bg-secondary hover:text-secondary-foreground w-full sm:w-auto"
                           >
                             <Ship className="size-4 group-hover:animate-bounce" />
                             {game.status === 'active' && user?.email && game.players.includes(user.email) ? 'Rejoin Game' : 'Join Game'}
                           </Button>
-                          {game.hostEmail === user?.email && (
-                            <Button
-                              onClick={() => setCancelGameId(game.id || null)}
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            >
-                              <X className="size-4" />
-                            </Button>
-                          )}
                         </div>
                       </div>
                     </CardContent>

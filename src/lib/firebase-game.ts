@@ -357,17 +357,32 @@ export const leaveGame = async (
     
     const gameData = gameDoc.data() as Game;
     
-    if (gameData.gameState && gameData.gameState.players[playerEmail]) {
-      // Mark player as disconnected
+    // If game is still in waiting status (lobby), remove the player completely
+    if (gameData.status === 'waiting') {
+      // Remove from players array
+      gameData.players = gameData.players.filter(email => email !== playerEmail);
+      gameData.playerCount = gameData.players.length;
+      
+      // Remove from gameState if exists
+      if (gameData.gameState && gameData.gameState.players[playerEmail]) {
+        delete gameData.gameState.players[playerEmail];
+      }
+      
+      await updateDoc(gameRef, {
+        players: gameData.players,
+        playerCount: gameData.playerCount,
+        gameState: gameData.gameState,
+        updatedAt: serverTimestamp()
+      });
+    } 
+    // If game is active, just mark as disconnected (existing behavior)
+    else if (gameData.status === 'active' && gameData.gameState && gameData.gameState.players[playerEmail]) {
       gameData.gameState.players[playerEmail].isConnected = false;
       
-      // If game is active, update their status to disconnected
-      if (gameData.status === 'active') {
-        const currentStatus = gameData.gameState.players[playerEmail].status;
-        // Only mark as disconnected if they're alive
-        if (currentStatus === 'alive') {
-          gameData.gameState.players[playerEmail].status = 'disconnected';
-        }
+      const currentStatus = gameData.gameState.players[playerEmail].status;
+      // Only mark as disconnected if they're alive
+      if (currentStatus === 'alive') {
+        gameData.gameState.players[playerEmail].status = 'disconnected';
       }
       
       await updateDoc(gameRef, {

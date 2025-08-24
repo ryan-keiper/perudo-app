@@ -12,6 +12,7 @@ import {
   updateGameSettings,
   startGame as startGameInFirebase,
   cancelGame,
+  leaveGame,
   type Game, 
   type GamePlayer,
   type GameSettings
@@ -55,7 +56,7 @@ const GameLobby = () => {
   const myPlayer = players.find(p => p.email === user?.email);
   const isReady = myPlayer?.isReady || false;
   const isHost = currentGame?.hostEmail === user?.email;
-  const canStartGame = players.filter(p => p.isReady).length >= 2 && isHost;
+  const canStartGame = players.length >= 2 && players.every(p => p.isReady) && isHost;
 
   // Subscribe to game updates
   useEffect(() => {
@@ -148,9 +149,17 @@ const GameLobby = () => {
     }
   };
 
-  const handleLeave = () => {
-    // TODO: Remove player from game in Firebase
-    navigate('/main-hub');
+  const handleLeave = async () => {
+    if (!currentGame?.id || !user?.email) return;
+    
+    try {
+      await leaveGame(currentGame.id, user.email);
+      navigate('/main-hub');
+    } catch (error) {
+      console.error('Error leaving game:', error);
+      // Navigate back anyway in case of error
+      navigate('/main-hub');
+    }
   };
   
   const handleCancelGame = async () => {
@@ -245,10 +254,10 @@ const GameLobby = () => {
                     : 'border-border'
                 }`}
               >
-                <CardContent className="p-4">
+                <CardContent className="py-1.5 px-2 sm:p-4">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="size-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold">
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <div className="size-8 sm:size-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-sm sm:text-base">
                         {(player.nickname || player.name)[0].toUpperCase()}
                       </div>
                       <div>
@@ -271,9 +280,9 @@ const GameLobby = () => {
               </Card>
             ))}
 
-            {/* Show empty slots */}
+            {/* Show empty slots - hidden on mobile */}
             {Array.from({ length: maxPlayers - players.length }).map((_, i) => (
-              <Card key={`empty-${i}`} className="border-dashed opacity-50">
+              <Card key={`empty-${i}`} className="border-dashed opacity-50 hidden sm:block">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-center gap-2 text-muted-foreground">
                     <UserPlus className="size-5" />
@@ -286,11 +295,11 @@ const GameLobby = () => {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className={`grid gap-2 ${isHost ? 'grid-cols-3' : 'grid-cols-1'}`}>
           <Button
             variant={isReady ? "secondary" : "default"}
             size="lg"
-            className="flex-1 gap-2"
+            className={`gap-2 h-12 ${!isHost ? 'col-span-1' : ''}`}
             onClick={handleReady}
           >
             <Dices className="size-5" />
@@ -301,7 +310,7 @@ const GameLobby = () => {
             <>
               <Button
                 size="lg"
-                className="flex-1 gap-2 bg-[var(--success)] hover:bg-[var(--success)]/90"
+                className="gap-2 h-12 bg-[var(--success)] hover:bg-[var(--success)]/90"
                 onClick={handleStartGame}
                 disabled={!canStartGame}
               >
@@ -311,7 +320,7 @@ const GameLobby = () => {
               <Button
                 size="lg"
                 variant="destructive"
-                className="gap-2"
+                className="gap-2 h-12"
                 onClick={() => setShowCancelDialog(true)}
               >
                 <X className="size-5" />
