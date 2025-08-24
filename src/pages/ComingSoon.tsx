@@ -44,9 +44,10 @@ const ComingSoon = () => {
       className="min-h-screen w-full flex flex-col items-center justify-center relative"
       style={{
         backgroundImage: `url(${comingSoonBg})`,
-        backgroundSize: 'cover',
+        backgroundSize: 'contain',
         backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat'
+        backgroundRepeat: 'no-repeat',
+        backgroundColor: '#000'
       }}
     >
       {/* Dark overlay for better text readability */}
