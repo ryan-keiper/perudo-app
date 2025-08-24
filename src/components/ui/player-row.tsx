@@ -101,6 +101,7 @@ export function PlayerRow({
           <DiceDisplay
             diceCount={player.diceCount}
             revealedDice={revealedDice || player.currentDice}
+            responsiveSize={true}
           />
         </div>
 
