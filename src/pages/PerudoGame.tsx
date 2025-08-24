@@ -263,32 +263,6 @@ const PerudoGame = () => {
         </div>
       </header>
 
-      {/* Status Bar */}
-      <div className="bg-card border-b">
-        <div className="container mx-auto px-4 py-2 flex items-center justify-between text-sm">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1">
-              <Dices className="size-4 text-muted-foreground" />
-              <span className="font-medium">{gameState.totalDice} dice</span>
-            </div>
-            {gameState.isPalifico && (
-              <div className="flex items-center gap-1 text-[var(--warning)]">
-                <AlertCircle className="size-4" />
-                <span className="font-medium">PALIFICO</span>
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground">Direction:</span>
-            {gameState.roundDirection === 'up' ? (
-              <ArrowUp className="size-4 text-primary" />
-            ) : (
-              <ArrowDown className="size-4 text-primary" />
-            )}
-          </div>
-        </div>
-      </div>
-
       <main className="container mx-auto px-4 py-4 max-w-6xl">
         {/* Game Board */}
         <div className="mb-4">
@@ -302,13 +276,13 @@ const PerudoGame = () => {
 
         {/* Game Info - Combined Current Bid and Expected Values */}
         <Card className="mb-4">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Game Info</CardTitle>
+          <CardHeader className="pb-0">
+            <CardTitle className="text-base">Game Info</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-5 gap-3">
+          <CardContent className="pt-1">
+            <div className="grid grid-cols-12 gap-2">
               {/* Current Bid Section - Left Side */}
-              <div className="col-span-2 border-r border-border/50 pr-3">
+              <div className="col-span-5 border-r border-border/50 pr-2">
                 {gameState.currentBid ? (
                   <div className="space-y-1">
                     <div className="text-xs text-muted-foreground">Current Bid:</div>
@@ -332,7 +306,7 @@ const PerudoGame = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center h-full">
+                  <div className="">
                     <div className="text-xs text-muted-foreground">
                       No bid yet
                       <br />
@@ -340,25 +314,100 @@ const PerudoGame = () => {
                     </div>
                   </div>
                 )}
+                
+                {/* Game Status Info */}
+                <div className="mt-3 space-y-1 text-xs">
+                  <div className="text-muted-foreground">
+                    {gameState.totalDice} on the board
+                  </div>
+                  <div className="flex items-center gap-1 text-muted-foreground">
+                    <span>Direction of play:</span>
+                    {gameState.roundDirection === 'up' ? (
+                      <ArrowUp className="size-3" />
+                    ) : (
+                      <ArrowDown className="size-3" />
+                    )}
+                  </div>
+                </div>
               </div>
               
-              {/* Expected Values Section - Right Side */}
-              <div className="col-span-3">
-                <div className="text-xs text-muted-foreground mb-1">Expected Values</div>
-                <div className="grid grid-cols-6 gap-0.5 text-center">
-                  {expectedValues.map((ev) => (
-                    <div key={ev.value} className="space-y-0.5">
-                      <div className="flex justify-center">
-                        <Dice value={ev.value as 1 | 2 | 3 | 4 | 5 | 6} size="xs" />
-                      </div>
-                      <div className="text-[10px] leading-tight text-muted-foreground">
-                        {ev.base}
-                      </div>
-                      <div className="text-[11px] leading-tight font-medium text-accent">
-                        {ev.adjusted}
-                      </div>
-                    </div>
-                  ))}
+              {/* Expected Values Table - Right Side */}
+              <div className="col-span-7 pl-1">
+                <table className="w-full text-center">
+                  <thead>
+                    <tr>
+                      <th className="text-[9px] text-left pr-1 font-normal text-muted-foreground w-10"></th>
+                      {[1, 2, 3, 4, 5, 6].map((val) => (
+                        <th key={val} className="pb-0.5">
+                          <div className="flex justify-center">
+                            <Dice value={val as 1 | 2 | 3 | 4 | 5 | 6} size="xs" />
+                          </div>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {/* Total row - always visible, shows dashes until reveal */}
+                    <tr>
+                      <td className="text-[10px] text-left pr-1 font-medium text-muted-foreground align-middle">Total</td>
+                      {[1, 2, 3, 4, 5, 6].map((val) => {
+                        if (gameState.revealedDice) {
+                          // Calculate total count for each die value across all players
+                          const totalCount = Object.values(gameState.revealedDice).reduce((sum, dice) => {
+                            return sum + dice.filter(d => d === val).length;
+                          }, 0);
+                          return (
+                            <td key={val} className="text-base font-bold text-primary align-middle">
+                              {totalCount || '0'}
+                            </td>
+                          );
+                        }
+                        // Show dashes when not revealed
+                        return (
+                          <td key={val} className="text-base font-bold text-muted-foreground/40 align-middle">
+                            -
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    
+                    {/* Your Dice row */}
+                    <tr>
+                      <td className="text-[9px] text-left pr-1 text-muted-foreground align-middle">Your Dice</td>
+                      {[1, 2, 3, 4, 5, 6].map((val) => {
+                        const count = myDice.filter(d => d === val).length;
+                        return (
+                          <td key={val} className="text-[10px] text-muted-foreground align-middle">
+                            {count || '-'}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    
+                    {/* Adjusted Expected Values row */}
+                    <tr>
+                      <td className="text-[9px] text-left pr-1 text-muted-foreground align-middle">adj exp</td>
+                      {expectedValues.map((ev) => (
+                        <td key={ev.value} className="text-[11px] font-medium text-accent align-middle">
+                          {ev.adjusted}
+                        </td>
+                      ))}
+                    </tr>
+                    
+                    {/* Base Expected Values row */}
+                    <tr>
+                      <td className="text-[9px] text-left pr-1 text-muted-foreground align-middle">base exp</td>
+                      {expectedValues.map((ev) => (
+                        <td key={ev.value} className="text-[10px] text-muted-foreground align-middle">
+                          {ev.base}
+                        </td>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
+                {/* Palifico/Non-Palifico Round indicator */}
+                <div className="mt-2 text-xs font-medium text-center">
+                  {gameState.isPalifico ? 'Palifico' : 'Non Palifico'} Round
                 </div>
               </div>
             </div>
@@ -385,7 +434,7 @@ const PerudoGame = () => {
                   <Dice
                     key={index}
                     value={die as 1 | 2 | 3 | 4 | 5 | 6}
-                    size="lg"
+                    size="md"
                     isRolling={isRolling}
                     onRollComplete={() => {
                       if (isRolling && index === myDice.length - 1) {
@@ -401,7 +450,7 @@ const PerudoGame = () => {
                     key={i}
                     value={1}
                     isHidden={true}
-                    size="lg"
+                    size="md"
                   />
                 ))
               )}
