@@ -64,7 +64,7 @@ export interface Game {
   hostEmail: string;
   createdAt: Timestamp | ReturnType<typeof serverTimestamp>;
   updatedAt: Timestamp | ReturnType<typeof serverTimestamp>;
-  status: 'waiting' | 'active' | 'completed';
+  status: 'waiting' | 'active' | 'completed' | 'cancelled';
   maxPlayers: number;
   playerCount: number;
   players: string[]; // Array of player emails/uids
@@ -665,7 +665,7 @@ export const callCalza = async (
 
 // Helper function to start a new round
 const startNewRound = async (
-  gameRef: any,
+  gameRef: ReturnType<typeof doc>,
   gameData: Game,
   startingPlayerEmail: string
 ): Promise<void> => {
@@ -712,7 +712,42 @@ const startNewRound = async (
   await updateDoc(gameRef, {
     status: gameData.status,
     winner: gameData.winner,
-    gameState: gameData.gameState as any,
+    gameState: gameData.gameState as unknown as Record<string, unknown>,
     updatedAt: serverTimestamp()
   });
+};
+
+// Cancel a game (host only)
+export const cancelGame = async (gameId: string, userEmail: string): Promise<void> => {
+  try {
+    const gameRef = doc(db, 'games', gameId);
+    const gameSnap = await getDoc(gameRef);
+    
+    if (!gameSnap.exists()) {
+      throw new Error('Game not found');
+    }
+    
+    const gameData = gameSnap.data() as Game;
+    
+    // Check if user is the host
+    if (gameData.hostEmail !== userEmail) {
+      throw new Error('Only the host can cancel the game');
+    }
+    
+    // Check if game is already completed or cancelled
+    if (gameData.status === 'completed' || gameData.status === 'cancelled') {
+      throw new Error('Game is already finished');
+    }
+    
+    // Update game status to cancelled
+    await updateDoc(gameRef, {
+      status: 'cancelled',
+      updatedAt: serverTimestamp()
+    });
+    
+    console.log('Game cancelled successfully');
+  } catch (error) {
+    console.error('Error cancelling game:', error);
+    throw error;
+  }
 };

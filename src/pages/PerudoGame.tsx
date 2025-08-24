@@ -10,9 +10,11 @@ import {
   makeBid,
   callDudo as callDudoInFirebase,
   callCalza as callCalzaInFirebase,
+  cancelGame,
   type Game,
   type GamePlayer
 } from '@/lib/firebase-game';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { 
   Dices,
   ArrowUp,
@@ -20,7 +22,8 @@ import {
   Star,
   AlertCircle,
   ArrowLeft,
-  Anchor
+  Anchor,
+  X
 } from 'lucide-react';
 
 interface GameState {
@@ -39,6 +42,9 @@ const PerudoGame = () => {
   const [currentGame, setCurrentGame] = useState<Game | null>(null);
   const [players, setPlayers] = useState<GamePlayer[]>([]);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancellationMessage, setCancellationMessage] = useState<string | null>(null);
 
   const [gameState, setGameState] = useState<GameState>({
     currentBid: null,
@@ -55,6 +61,7 @@ const PerudoGame = () => {
   const roomCode = gameId?.toUpperCase() || '';
   const myPlayer = players.find(p => p.email === user?.email);
   const isDisconnected = myPlayer?.status === 'disconnected';
+  const isHost = currentGame?.hostEmail === user?.email;
 
   // Subscribe to game updates
   useEffect(() => {
@@ -87,6 +94,14 @@ const PerudoGame = () => {
           if (me?.currentDice && me.currentDice.length > 0) {
             setMyDice(me.currentDice);
           }
+        }
+        
+        // Handle game cancellation
+        if (game.status === 'cancelled') {
+          setCancellationMessage('Game was cancelled by the host');
+          setTimeout(() => {
+            navigate('/main-hub');
+          }, 2000);
         }
       } else {
         // Game doesn't exist, go back to main hub
@@ -183,6 +198,21 @@ const PerudoGame = () => {
     navigate('/main-hub');
   };
 
+  const handleCancelGame = async () => {
+    if (!currentGame?.id || !user?.email || !isHost) return;
+    
+    setIsCancelling(true);
+    try {
+      await cancelGame(currentGame.id, user.email);
+      // Navigation will happen automatically via subscription
+    } catch (error) {
+      console.error('Error cancelling game:', error);
+    } finally {
+      setIsCancelling(false);
+      setShowCancelDialog(false);
+    }
+  };
+
   const rollDice = () => {
     // Dice are rolled automatically by Firebase when round starts
     // This is just for visual effect during development
@@ -213,15 +243,28 @@ const PerudoGame = () => {
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleLeaveGame}
-            className="gap-2"
-          >
-            <ArrowLeft className="size-4" />
-            Leave
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLeaveGame}
+              className="gap-2"
+            >
+              <ArrowLeft className="size-4" />
+              Leave
+            </Button>
+            {isHost && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowCancelDialog(true)}
+                className="gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+              >
+                <X className="size-4" />
+                <span className="hidden sm:inline">Cancel Game</span>
+              </Button>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <Anchor className="size-5 text-primary" />
             <span className="font-bold text-primary">Room {gameId}</span>
@@ -437,6 +480,47 @@ const PerudoGame = () => {
           </CardContent>
         </Card>
       </main>
+
+      {/* Cancel Game Confirmation Dialog */}
+      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Active Game?</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-muted-foreground">
+              Are you sure you want to cancel this active game?
+            </p>
+            <p className="mt-2 font-medium text-destructive">
+              This will immediately end the game for all {players.length} players currently playing.
+            </p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowCancelDialog(false)}
+            >
+              Keep Playing
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleCancelGame}
+              disabled={isCancelling}
+            >
+              {isCancelling ? 'Cancelling...' : 'Cancel Game'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancellation Message */}
+      {cancellationMessage && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
+          <div className="bg-destructive text-destructive-foreground px-6 py-3 rounded-lg shadow-lg">
+            {cancellationMessage}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -11,6 +11,7 @@ import {
   updatePlayerReady,
   updateGameSettings,
   startGame as startGameInFirebase,
+  cancelGame,
   type Game, 
   type GamePlayer,
   type GameSettings
@@ -24,19 +25,23 @@ import {
   Settings,
   Play,
   UserPlus,
-  Anchor
+  Anchor,
+  X
 } from 'lucide-react';
 
 const GameLobby = () => {
   const navigate = useNavigate();
   const { gameId } = useParams();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [currentGame, setCurrentGame] = useState<Game | null>(null);
   const [players, setPlayers] = useState<GamePlayer[]>([]);
   const [isJoining, setIsJoining] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
   const [isStartingGame, setIsStartingGame] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancellationMessage, setCancellationMessage] = useState<string | null>(null);
   const [localSettings, setLocalSettings] = useState<GameSettings>({
     startingDice: 5,
     sevenDiceWins: true,
@@ -76,6 +81,14 @@ const GameLobby = () => {
         if (game.status === 'active' && hasJoined) {
           navigate(`/game/${roomCode}`);
         }
+        
+        // Handle game cancellation
+        if (game.status === 'cancelled') {
+          setCancellationMessage('Game was cancelled by the host');
+          setTimeout(() => {
+            navigate('/main-hub');
+          }, 2000);
+        }
       } else if (!isJoining) {
         // Game doesn't exist, go back to main hub
         navigate('/main-hub');
@@ -92,7 +105,7 @@ const GameLobby = () => {
       
       setIsJoining(true);
       try {
-        const userName = user.email.split('@')[0];
+        const userName = profile?.nickname || user.email.split('@')[0];
         const result = await joinGame(roomCode, user.email, userName);
         setHasJoined(true);
         
@@ -109,7 +122,7 @@ const GameLobby = () => {
     };
 
     autoJoin();
-  }, [user, roomCode, hasJoined, isJoining, navigate]);
+  }, [user, roomCode, hasJoined, isJoining, navigate, profile?.nickname]);
 
   const handleReady = async () => {
     if (!currentGame?.id || !user?.email) return;
@@ -138,6 +151,21 @@ const GameLobby = () => {
   const handleLeave = () => {
     // TODO: Remove player from game in Firebase
     navigate('/main-hub');
+  };
+  
+  const handleCancelGame = async () => {
+    if (!currentGame?.id || !user?.email || !isHost) return;
+    
+    setIsCancelling(true);
+    try {
+      await cancelGame(currentGame.id, user.email);
+      // Navigation will happen automatically via subscription
+    } catch (error) {
+      console.error('Error cancelling game:', error);
+    } finally {
+      setIsCancelling(false);
+      setShowCancelDialog(false);
+    }
   };
   
   const handleSaveSettings = async () => {
@@ -270,15 +298,26 @@ const GameLobby = () => {
           </Button>
 
           {isHost && (
-            <Button
-              size="lg"
-              className="flex-1 gap-2 bg-[var(--success)] hover:bg-[var(--success)]/90"
-              onClick={handleStartGame}
-              disabled={!canStartGame}
-            >
-              <Play className="size-5" />
-              Start Game
-            </Button>
+            <>
+              <Button
+                size="lg"
+                className="flex-1 gap-2 bg-[var(--success)] hover:bg-[var(--success)]/90"
+                onClick={handleStartGame}
+                disabled={!canStartGame}
+              >
+                <Play className="size-5" />
+                Start Game
+              </Button>
+              <Button
+                size="lg"
+                variant="destructive"
+                className="gap-2"
+                onClick={() => setShowCancelDialog(true)}
+              >
+                <X className="size-5" />
+                Cancel Game
+              </Button>
+            </>
           )}
         </div>
 
@@ -436,6 +475,49 @@ const GameLobby = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Cancel Game Confirmation Dialog */}
+      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Game?</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-muted-foreground">
+              Are you sure you want to cancel this game? 
+              {players.length > 1 && (
+                <span className="block mt-2 font-medium">
+                  This will remove all {players.length} players from the lobby.
+                </span>
+              )}
+            </p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowCancelDialog(false)}
+            >
+              Keep Game
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleCancelGame}
+              disabled={isCancelling}
+            >
+              {isCancelling ? 'Cancelling...' : 'Cancel Game'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Cancellation Message */}
+      {cancellationMessage && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50">
+          <div className="bg-destructive text-destructive-foreground px-6 py-3 rounded-lg shadow-lg">
+            {cancellationMessage}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

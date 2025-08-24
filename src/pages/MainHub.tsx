@@ -3,9 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/auth-hooks';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { auth } from '@/firebase/firebase';
 import { signOut } from 'firebase/auth';
-import { createGame, subscribeToActiveGames, type Game } from '@/lib/firebase-game';
+import { createGame, subscribeToActiveGames, cancelGame, type Game } from '@/lib/firebase-game';
+import { ProfileEditor } from '@/components/ProfileEditor';
+import { calculateSuccessRates, getTopPlayersByWins, type LeaderboardPlayer } from '@/lib/firebase-user';
 import { 
   Trophy, 
   Users, 
@@ -16,15 +19,21 @@ import {
   Ship,
   Clock,
   User,
-  Loader2
+  Loader2,
+  Settings,
+  X
 } from 'lucide-react';
 
 const MainHub = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const [activeGames, setActiveGames] = useState<Game[]>([]);
   const [isCreatingGame, setIsCreatingGame] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardPlayer[]>([]);
+  const [cancelGameId, setCancelGameId] = useState<string | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   // Subscribe to active games
   useEffect(() => {
@@ -35,6 +44,17 @@ const MainHub = () => {
 
     return () => unsubscribe();
   }, []);
+
+  // Load leaderboard
+  useEffect(() => {
+    const loadLeaderboard = async () => {
+      const topPlayers = await getTopPlayersByWins(3);
+      setLeaderboard(topPlayers);
+    };
+    
+    loadLeaderboard();
+    // Refresh leaderboard when profile updates (in case user's wins changed)
+  }, [profile]);
 
   const handleSignOut = async () => {
     try {
@@ -50,7 +70,7 @@ const MainHub = () => {
     
     setIsCreatingGame(true);
     try {
-      const hostName = user.email.split('@')[0];
+      const hostName = profile?.nickname || user.email.split('@')[0];
       const roomCode = await createGame(user.email, hostName);
       console.log('Created game with code:', roomCode);
       // Game will appear in list via real-time subscription
@@ -72,6 +92,20 @@ const MainHub = () => {
     }
   };
 
+  const handleCancelGame = async () => {
+    if (!cancelGameId || !user?.email) return;
+    
+    setIsCancelling(true);
+    try {
+      await cancelGame(cancelGameId, user.email);
+      setCancelGameId(null);
+    } catch (error) {
+      console.error('Error cancelling game:', error);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/10">
       {/* Navigation Header */}
@@ -81,15 +115,30 @@ const MainHub = () => {
             <Anchor className="size-6 text-primary" />
             <h1 className="text-2xl font-bold text-primary">Perudo</h1>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleSignOut}
-            className="gap-2"
-          >
-            <LogOut className="size-4" />
-            Sign Out
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                console.log('Profile button clicked, profile:', profile);
+                setShowProfileEditor(true);
+              }}
+              className="gap-2"
+            >
+              <span className="text-2xl">{profile?.avatar || '👤'}</span>
+              <span className="hidden sm:inline">{profile?.nickname || 'Profile'}</span>
+              <Settings className="size-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSignOut}
+              className="gap-2"
+            >
+              <LogOut className="size-4" />
+              <span className="hidden sm:inline">Sign Out</span>
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -97,8 +146,11 @@ const MainHub = () => {
       <main className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Welcome Section */}
         <div className="text-center mb-8">
+          <div className="inline-block mb-4 text-6xl bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/20 dark:to-pink-900/20 p-4 rounded-2xl shadow-lg">
+            {profile?.avatar || '🎲'}
+          </div>
           <h2 className="text-3xl font-bold mb-2">
-            Ahoy, {user?.email?.split('@')[0] || 'Matey'}!
+            Ahoy, {profile?.nickname || user?.email?.split('@')[0] || 'Matey'}!
           </h2>
           <p className="text-muted-foreground">
             Ready to test your luck and deception skills?
@@ -112,33 +164,37 @@ const MainHub = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Trophy className="size-5 text-accent" />
-                Weekly Leaderboard
+                Leaderboard
               </CardTitle>
               <CardDescription>
-                This week's top pirates
+                Top pirates by overall win count
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {/* Placeholder leaderboard */}
-                {[
-                  { rank: 1, name: 'Captain Jack', wins: 12 },
-                  { rank: 2, name: 'Blackbeard', wins: 10 },
-                  { rank: 3, name: 'Anne Bonny', wins: 8 },
-                ].map((player) => (
-                  <div key={player.rank} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`font-bold ${player.rank === 1 ? 'text-accent text-xl' : 'text-muted-foreground'}`}>
-                        #{player.rank}
+                {leaderboard.length > 0 ? (
+                  leaderboard.map((player, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`font-bold ${index === 0 ? 'text-accent text-xl' : 'text-muted-foreground'}`}>
+                          #{index + 1}
+                        </div>
+                        <span className="text-2xl">{player.avatar}</span>
+                        <div className="font-medium">{player.nickname}</div>
                       </div>
-                      <div className="font-medium">{player.name}</div>
+                      <div className="flex items-center gap-1">
+                        <Trophy className="size-4 text-accent" />
+                        <span className="font-bold">{player.gamesWon}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Trophy className="size-4 text-accent" />
-                      <span className="font-bold">{player.wins}</span>
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground">
+                    <Trophy className="size-8 mx-auto mb-2 opacity-50" />
+                    <p>No games completed yet</p>
+                    <p className="text-sm mt-1">Be the first to win!</p>
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>
@@ -151,25 +207,33 @@ const MainHub = () => {
                 Your Stats
               </CardTitle>
               <CardDescription>
-                Performance this week
+                Performance so far
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <div className="text-2xl font-bold text-primary">85%</div>
+                  <div className="text-2xl font-bold text-primary">
+                    {profile ? calculateSuccessRates(profile.stats).dudoSuccessRate : 0}%
+                  </div>
                   <p className="text-sm text-muted-foreground">Dudo Success</p>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-[var(--success)]">42%</div>
+                  <div className="text-2xl font-bold text-[var(--success)]">
+                    {profile ? calculateSuccessRates(profile.stats).calzaSuccessRate : 0}%
+                  </div>
                   <p className="text-sm text-muted-foreground">Calza Success</p>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-accent">7</div>
+                  <div className="text-2xl font-bold text-accent">
+                    {profile?.stats.gamesWon || 0}
+                  </div>
                   <p className="text-sm text-muted-foreground">Games Won</p>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-secondary">3</div>
+                  <div className="text-2xl font-bold text-secondary">
+                    {profile?.stats.currentWinStreak || 0}
+                  </div>
                   <p className="text-sm text-muted-foreground">Win Streak</p>
                 </div>
               </div>
@@ -248,14 +312,26 @@ const MainHub = () => {
                             </div>
                           </div>
                         </div>
-                        <Button
-                          onClick={() => handleJoinGame(game)}
-                          variant="outline"
-                          className="gap-2 group border-secondary hover:bg-secondary hover:text-secondary-foreground"
-                        >
-                          <Ship className="size-4 group-hover:animate-bounce" />
-                          {game.status === 'active' && user?.email && game.players.includes(user.email) ? 'Rejoin Game' : 'Join Game'}
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => handleJoinGame(game)}
+                            variant="outline"
+                            className="gap-2 group border-secondary hover:bg-secondary hover:text-secondary-foreground"
+                          >
+                            <Ship className="size-4 group-hover:animate-bounce" />
+                            {game.status === 'active' && user?.email && game.players.includes(user.email) ? 'Rejoin Game' : 'Join Game'}
+                          </Button>
+                          {game.hostEmail === user?.email && (
+                            <Button
+                              onClick={() => setCancelGameId(game.id || null)}
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <X className="size-4" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -265,6 +341,67 @@ const MainHub = () => {
           </CardContent>
         </Card>
       </main>
+
+      {/* Profile Editor Dialog - Show loading state if profile not yet loaded */}
+      {showProfileEditor && !profile && (
+        <Dialog open={showProfileEditor} onOpenChange={() => setShowProfileEditor(false)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Loading Profile...</DialogTitle>
+            </DialogHeader>
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+      
+      {/* Profile Editor Dialog */}
+      {profile && showProfileEditor && (
+        <ProfileEditor
+          profile={profile}
+          isOpen={showProfileEditor}
+          onClose={() => setShowProfileEditor(false)}
+          onProfileUpdate={async () => {
+            await refreshProfile();
+            setShowProfileEditor(false);
+          }}
+        />
+      )}
+
+      {/* Cancel Game Confirmation Dialog */}
+      <Dialog open={!!cancelGameId} onOpenChange={(open) => !open && setCancelGameId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Game?</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-muted-foreground">
+              Are you sure you want to cancel this game?
+            </p>
+            {activeGames.find(g => g.id === cancelGameId)?.status === 'active' && (
+              <p className="mt-2 font-medium text-destructive">
+                This game is currently active and will end for all players.
+              </p>
+            )}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setCancelGameId(null)}
+            >
+              Keep Game
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleCancelGame}
+              disabled={isCancelling}
+            >
+              {isCancelling ? 'Cancelling...' : 'Cancel Game'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
