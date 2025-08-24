@@ -21,7 +21,6 @@ import {
   Dices,
   ArrowUp,
   ArrowDown,
-  AlertCircle,
   ArrowLeft,
   Anchor,
   X
@@ -317,8 +316,9 @@ const PerudoGame = () => {
                 
                 {/* Game Status Info */}
                 <div className="mt-3 space-y-1 text-xs">
-                  <div className="text-muted-foreground">
-                    {gameState.totalDice} on the board
+                  <div className="flex items-center gap-1 text-muted-foreground">
+                    <Dices className="size-3" />
+                    <span>{gameState.totalDice} on the board</span>
                   </div>
                   <div className="flex items-center gap-1 text-muted-foreground">
                     <span>Direction of play:</span>
