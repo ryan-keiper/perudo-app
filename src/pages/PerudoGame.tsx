@@ -25,6 +25,7 @@ import {
   Anchor,
   X
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface GameState {
   currentBid: { count: number; value: number } | null;
@@ -226,6 +227,18 @@ const PerudoGame = () => {
     }, 1800); // Match the dice animation duration
   };
 
+  // Auto-roll dice at the start of each round
+  useEffect(() => {
+    // Reset dice when round ends (dice are revealed)
+    if (gameState.revealedDice) {
+      setMyDice([]);
+    }
+    // Roll dice when a new round starts (no bid, no revealed dice, game active)
+    else if (!gameState.currentBid && !gameState.revealedDice && currentGame?.gameState?.status === 'active' && myPlayer?.isAlive && myDice.length === 0 && !isRolling) {
+      rollDice();
+    }
+  }, [gameState.currentBid, gameState.revealedDice, currentGame?.gameState?.status, myPlayer?.isAlive, myDice.length, isRolling]);
+
   const expectedValues = calculateExpectedValues();
 
   return (
@@ -275,10 +288,8 @@ const PerudoGame = () => {
 
         {/* Game Info - Combined Current Bid and Expected Values */}
         <Card className="mb-4">
-          <CardHeader className="pb-0">
-            <CardTitle className="text-base">Game Info</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-1">
+          <CardContent className="pt-1 pb-2">
+            <div className="text-base font-medium text-center mb-1">Game Info</div>
             <div className="grid grid-cols-12 gap-2">
               {/* Current Bid Section - Left Side */}
               <div className="col-span-5 border-r border-border/50 pr-2">
@@ -414,115 +425,166 @@ const PerudoGame = () => {
           </CardContent>
         </Card>
 
-        {/* Your Dice */}
-        <Card className="mb-4 border-accent">
-          <CardHeader className="pb-3 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm">Your Dice</CardTitle>
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={rollDice}
-              disabled={isRolling}
-            >
-              {isRolling ? 'Rolling...' : 'Roll'}
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="flex justify-center gap-2">
-              {myDice.length > 0 ? (
-                myDice.map((die, index) => (
-                  <Dice
-                    key={index}
-                    value={die as 1 | 2 | 3 | 4 | 5 | 6}
-                    size="md"
-                    isRolling={isRolling}
-                    onRollComplete={() => {
-                      if (isRolling && index === myDice.length - 1) {
-                        setIsRolling(false);
-                      }
-                    }}
-                  />
-                ))
-              ) : (
-                // Show placeholder dice when no dice rolled yet
-                Array.from({ length: myPlayer?.diceCount || 5 }, (_, i) => (
-                  <Dice
-                    key={i}
-                    value={1}
-                    isHidden={true}
-                    size="md"
-                  />
-                ))
-              )}
+        {/* Combined Your Dice + Controls */}
+        <Card className="border-accent">
+          <CardContent className="pt-1 pb-4">
+            {/* Your Dice Section */}
+            <div className="text-center">
+              <div className="text-sm font-medium mb-2">Your Dice</div>
+              <div className="flex justify-center gap-2 mb-3">
+                {myDice.length > 0 ? (
+                  myDice.map((die, index) => (
+                    <Dice
+                      key={index}
+                      value={die as 1 | 2 | 3 | 4 | 5 | 6}
+                      size="md"
+                      isRolling={isRolling}
+                      onRollComplete={() => {
+                        if (isRolling && index === myDice.length - 1) {
+                          setIsRolling(false);
+                        }
+                      }}
+                    />
+                  ))
+                ) : (
+                  // Show placeholder dice when no dice rolled yet
+                  Array.from({ length: myPlayer?.diceCount || 5 }, (_, i) => (
+                    <Dice
+                      key={i}
+                      value={1}
+                      isHidden={true}
+                      size="md"
+                    />
+                  ))
+                )}
+              </div>
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Controls */}
-        <Card>
-          <CardContent className="py-4">
-            <div className="space-y-4">
-              {/* Bid Controls */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-sm text-muted-foreground">Count</label>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setSelectedCount(Math.max(1, selectedCount - 1))}
-                    >
-                      -
-                    </Button>
-                    <div className="flex-1 text-center font-bold text-lg">
-                      {selectedCount}
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setSelectedCount(Math.min(gameState.totalDice, selectedCount + 1))}
-                    >
-                      +
-                    </Button>
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground">Value</label>
-                  <div className="grid grid-cols-3 gap-1 mt-1">
-                    {[1, 2, 3, 4, 5, 6].map((val) => (
-                      <Button
-                        key={val}
-                        size="sm"
-                        variant={selectedValue === val ? "default" : "outline"}
-                        onClick={() => setSelectedValue(val)}
-                        className="p-1 h-auto"
-                      >
-                        <Dice value={val as 1 | 2 | 3 | 4 | 5 | 6} size="sm" className="pointer-events-none" />
-                      </Button>
-                    ))}
-                  </div>
+            {/* Divider */}
+            <div className="border-t border-border/50 my-3" />
+
+            {/* Controls Section */}
+            <div className="flex gap-2">
+              {/* Direction Selector - 20% width */}
+              <div className="w-[20%] flex flex-col">
+                <label className="text-xs text-muted-foreground mb-1 text-center">Direction</label>
+                <div className="flex flex-col items-center gap-2 flex-1 justify-center">
+                  {/* Up Arrow Triangle */}
+                  <button
+                    onClick={() => setGameState(prev => ({ ...prev, roundDirection: 'up' }))}
+                    disabled={!(gameState.currentPlayerId === user?.email && !gameState.currentBid)}
+                    className={cn(
+                      "transition-all",
+                      gameState.roundDirection === 'up' 
+                        ? "text-accent" 
+                        : "text-muted-foreground/50",
+                      !(gameState.currentPlayerId === user?.email && !gameState.currentBid) && "opacity-30 cursor-not-allowed"
+                    )}
+                    aria-label="Direction Up"
+                  >
+                    <svg width="40" height="35" viewBox="0 0 40 35" fill="currentColor">
+                      <path d="M20 2 L38 33 L2 33 Z" />
+                    </svg>
+                  </button>
+                  {/* Down Arrow Triangle */}
+                  <button
+                    onClick={() => setGameState(prev => ({ ...prev, roundDirection: 'down' }))}
+                    disabled={!(gameState.currentPlayerId === user?.email && !gameState.currentBid)}
+                    className={cn(
+                      "transition-all",
+                      gameState.roundDirection === 'down' 
+                        ? "text-accent" 
+                        : "text-muted-foreground/50",
+                      !(gameState.currentPlayerId === user?.email && !gameState.currentBid) && "opacity-30 cursor-not-allowed"
+                    )}
+                    aria-label="Direction Down"
+                  >
+                    <svg width="40" height="35" viewBox="0 0 40 35" fill="currentColor">
+                      <path d="M20 33 L2 2 L38 2 Z" />
+                    </svg>
+                  </button>
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="grid grid-cols-3 gap-2">
+              {/* Bid Controls Group - 40% width */}
+              <div className="w-[40%] space-y-2">
+                {/* Count and Value Group */}
+                <div className="flex gap-2 items-start">
+                  {/* Count Selector */}
+                  <div className="flex flex-col items-center">
+                    <label className="text-xs text-muted-foreground mb-1">Count</label>
+                    <div className="flex flex-col items-center gap-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSelectedCount(Math.min(gameState.totalDice, selectedCount + 1))}
+                        className="h-6 w-6 p-0 text-xs"
+                      >
+                        +
+                      </Button>
+                      <div className="text-center font-bold text-base h-6 flex items-center">
+                        {selectedCount}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setSelectedCount(Math.max(1, selectedCount - 1))}
+                        className="h-6 w-6 p-0 text-xs"
+                      >
+                        -
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Value Selector - 2x3 Grid */}
+                  <div className="flex-1">
+                    <label className="text-xs text-muted-foreground mb-1 block text-center">Value</label>
+                    <div className="grid grid-cols-3 gap-0.5">
+                      {[1, 2, 3, 4, 5, 6].map((val) => (
+                        <button
+                          key={val}
+                          onClick={() => setSelectedValue(val)}
+                          className={cn(
+                            "p-0.5 rounded transition-all",
+                            selectedValue === val 
+                              ? "ring-2 ring-accent ring-offset-1 ring-offset-background" 
+                              : "hover:ring-1 hover:ring-accent/50"
+                          )}
+                        >
+                          <Dice 
+                            value={val as 1 | 2 | 3 | 4 | 5 | 6} 
+                            size="xs" 
+                            className="pointer-events-none" 
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bid Button */}
                 <Button
                   onClick={handleBid}
-                  className="bg-secondary hover:bg-secondary/90"
+                  className="w-full bg-secondary hover:bg-secondary/90"
                   disabled={currentGame?.gameState?.currentPlayerId !== user?.email}
                 >
                   Bid
                 </Button>
+              </div>
+
+              {/* Dudo/Calza - 40% width with inner margin */}
+              <div className="w-[40%] flex flex-col gap-2 pl-3">
                 <Button
                   onClick={handleDudo}
                   variant="destructive"
+                  className="flex-1 text-sm"
                   disabled={!gameState.currentBid || currentGame?.gameState?.currentPlayerId !== user?.email}
                 >
                   Dudo!
                 </Button>
                 <Button
                   onClick={handleCalza}
-                  className="bg-accent hover:bg-accent/90 text-accent-foreground"
+                  className="bg-accent hover:bg-accent/90 text-accent-foreground flex-1 text-sm"
                   disabled={!gameState.currentBid || currentGame?.gameState?.currentPlayerId !== user?.email || currentGame?.gameState?.currentWager?.playerId === user?.email}
                 >
                   Calza!
