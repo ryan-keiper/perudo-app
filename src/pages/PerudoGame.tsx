@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/context/auth-hooks';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { GameBoard } from '@/components/ui/game-board';
 import { Dice } from '@/components/ui/dice';
 import { 
@@ -234,10 +234,10 @@ const PerudoGame = () => {
       setMyDice([]);
     }
     // Roll dice when a new round starts (no bid, no revealed dice, game active)
-    else if (!gameState.currentBid && !gameState.revealedDice && currentGame?.gameState?.status === 'active' && myPlayer?.isAlive && myDice.length === 0 && !isRolling) {
+    else if (!gameState.currentBid && !gameState.revealedDice && currentGame?.status === 'active' && myPlayer?.status === 'alive' && myDice.length === 0 && !isRolling) {
       rollDice();
     }
-  }, [gameState.currentBid, gameState.revealedDice, currentGame?.gameState?.status, myPlayer?.isAlive, myDice.length, isRolling]);
+  }, [gameState.currentBid, gameState.revealedDice, currentGame?.status, myPlayer?.status, myDice.length, isRolling]);
 
   const expectedValues = calculateExpectedValues();
 
@@ -280,7 +280,7 @@ const PerudoGame = () => {
         <div className="mb-4">
           <GameBoard
             players={players}
-            currentPlayerId={currentGame?.gameState?.currentPlayerId}
+            currentPlayerId={currentGame?.gameState?.currentPlayerId || ''}
             currentUserEmail={user?.email || undefined}
             revealedDice={gameState.revealedDice}
           />
@@ -472,13 +472,13 @@ const PerudoGame = () => {
                   {/* Up Arrow Triangle */}
                   <button
                     onClick={() => setGameState(prev => ({ ...prev, roundDirection: 'up' }))}
-                    disabled={!(gameState.currentPlayerId === user?.email && !gameState.currentBid)}
+                    disabled={!(currentGame?.gameState?.currentPlayerId === myPlayer?.id && !gameState.currentBid)}
                     className={cn(
                       "transition-all",
                       gameState.roundDirection === 'up' 
                         ? "text-accent" 
                         : "text-muted-foreground/50",
-                      !(gameState.currentPlayerId === user?.email && !gameState.currentBid) && "opacity-30 cursor-not-allowed"
+                      !(currentGame?.gameState?.currentPlayerId === myPlayer?.id && !gameState.currentBid) && "opacity-30 cursor-not-allowed"
                     )}
                     aria-label="Direction Up"
                   >
@@ -489,13 +489,13 @@ const PerudoGame = () => {
                   {/* Down Arrow Triangle */}
                   <button
                     onClick={() => setGameState(prev => ({ ...prev, roundDirection: 'down' }))}
-                    disabled={!(gameState.currentPlayerId === user?.email && !gameState.currentBid)}
+                    disabled={!(currentGame?.gameState?.currentPlayerId === myPlayer?.id && !gameState.currentBid)}
                     className={cn(
                       "transition-all",
                       gameState.roundDirection === 'down' 
                         ? "text-accent" 
                         : "text-muted-foreground/50",
-                      !(gameState.currentPlayerId === user?.email && !gameState.currentBid) && "opacity-30 cursor-not-allowed"
+                      !(currentGame?.gameState?.currentPlayerId === myPlayer?.id && !gameState.currentBid) && "opacity-30 cursor-not-allowed"
                     )}
                     aria-label="Direction Down"
                   >
@@ -566,7 +566,7 @@ const PerudoGame = () => {
                 <Button
                   onClick={handleBid}
                   className="w-full bg-secondary hover:bg-secondary/90"
-                  disabled={currentGame?.gameState?.currentPlayerId !== user?.email}
+                  disabled={currentGame?.gameState?.currentPlayerId !== myPlayer?.id}
                 >
                   Bid
                 </Button>
@@ -578,14 +578,14 @@ const PerudoGame = () => {
                   onClick={handleDudo}
                   variant="destructive"
                   className="flex-1 text-sm"
-                  disabled={!gameState.currentBid || currentGame?.gameState?.currentPlayerId !== user?.email}
+                  disabled={!gameState.currentBid || currentGame?.gameState?.currentPlayerId !== myPlayer?.id}
                 >
                   Dudo!
                 </Button>
                 <Button
                   onClick={handleCalza}
                   className="bg-accent hover:bg-accent/90 text-accent-foreground flex-1 text-sm"
-                  disabled={!gameState.currentBid || currentGame?.gameState?.currentPlayerId !== user?.email || currentGame?.gameState?.currentWager?.playerId === user?.email}
+                  disabled={!gameState.currentBid || currentGame?.gameState?.currentPlayerId !== myPlayer?.id || currentGame?.gameState?.currentWager?.playerId === myPlayer?.id}
                 >
                   Calza!
                 </Button>
