@@ -10,7 +10,8 @@ import {
   query,
   orderBy,
   limit,
-  getDocs
+  getDocs,
+  FieldValue
 } from 'firebase/firestore';
 import { db } from '@/firebase/firebase';
 
@@ -56,7 +57,7 @@ export const AVAILABLE_AVATARS = [
   '👽', '🤖', '👻', '🎃', '☠️', '🤡', '👹', '👺', '🧙', '🧛',
   '🧟', '🧞', '🦸', '🦹', '🧚', '🧜', '🧝', '🎅', '🤶', '👸',
   // Objects & symbols
-  '🎲', '⚓', '🎯', '🎪', '🎨', '🎭', '🎪', '🏴‍☠️', '🚀', '🛸',
+  '🎲', '⚓', '🎯', '🎪', '🎨', '🎭', '🧭', '🏴‍☠️', '🚀', '🛸',
   '⚡', '🔥', '💎', '🌟', '🎱', '🏆', '👑', '💀', '🌈', '🍀'
 ];
 
@@ -182,7 +183,7 @@ export const updateUserStats = async (
     const currentProfile = userSnap.data() as UserProfile;
     const currentStreak = currentProfile.stats.currentWinStreak;
     
-    const updates: Record<string, unknown> = {
+    const updates: Record<string, FieldValue | Timestamp | number> = {
       'stats.gamesPlayed': increment(1),
       'stats.totalDudoCalls': increment(gameResult.dudoCalls),
       'stats.successfulDudos': increment(gameResult.successfulDudos),
@@ -207,7 +208,7 @@ export const updateUserStats = async (
       updates['stats.currentWinStreak'] = 0;
     }
     
-    await updateDoc(userRef, updates as any);
+    await updateDoc(userRef, updates);
   } catch (error) {
     console.error('Error updating user stats:', error);
     throw error;

@@ -13,6 +13,7 @@ import {
   startGame as startGameInFirebase,
   cancelGame,
   leaveGame,
+  sortPlayersByCanonicalOrder,
   type Game, 
   type GamePlayer,
   type GameSettings
@@ -67,9 +68,12 @@ const GameLobby = () => {
       if (game) {
         setCurrentGame(game);
         
-        // Extract players from game state
+        // Extract players from game state and sort by canonical order
         if (game.gameState?.players) {
-          const playerList = Object.values(game.gameState.players);
+          const playerList = sortPlayersByCanonicalOrder(
+            game.gameState.players,
+            game.playerOrder || []
+          );
           setPlayers(playerList);
         }
         

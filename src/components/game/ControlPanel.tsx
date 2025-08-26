@@ -143,25 +143,33 @@ const ControlPanel = ({
           </div>
 
           {/* Value Selector */}
-          <div className="grid grid-cols-6 gap-1">
+          <div className="grid grid-cols-6 gap-2">
             {diceSymbols.map((symbol, index) => {
               const value = index + 1;
               const isDisabled = isPalifico && currentBid && value !== currentBid.value;
+              const isSelected = selectedValue === value;
               
               return (
-                <Button
+                <button
                   key={value}
-                  variant={selectedValue === value ? 'default' : 'outline'}
-                  onClick={() => setSelectedValue(value)}
+                  onClick={() => !isDisabled && !disabled && setSelectedValue(value)}
                   disabled={disabled || isDisabled}
                   className={cn(
-                    "text-2xl p-2 h-auto",
-                    value === 1 && !isPalifico && "text-accent border-accent",
+                    "relative text-3xl size-10 flex items-center justify-center rounded transition-all p-0",
+                    "hover:scale-110 disabled:pointer-events-none",
+                    isSelected ? [
+                      "text-primary-foreground bg-primary",
+                      "border-2 border-amber-500 shadow-lg shadow-amber-500/30",
+                    ] : [
+                      "text-foreground bg-background",
+                      "border border-border hover:bg-accent/10",
+                    ],
+                    value === 1 && !isPalifico && !isSelected && "text-accent border-accent",
                     isDisabled && "opacity-30"
                   )}
                 >
-                  {symbol}
-                </Button>
+                  <span className="leading-none">{symbol}</span>
+                </button>
               );
             })}
           </div>
