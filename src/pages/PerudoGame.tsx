@@ -12,6 +12,7 @@ import {
   makeBid,
   callDudo as callDudoInFirebase,
   callCalza as callCalzaInFirebase,
+  callGhostCalza as callGhostCalzaInFirebase,
   cancelGame,
   sortPlayersByCanonicalOrder,
   setRoundDirection,
@@ -31,7 +32,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { 
-  DiceRevealAnimation 
+  DiceRevealAnimation,
+  VictoryAnnouncement 
 } from '@/components/ui/game-animations';
 
 interface GameState {
@@ -84,6 +86,12 @@ const PerudoGame = () => {
   const [showRoundResult, setShowRoundResult] = useState(false);
   const [dudoPlayerName, setDudoPlayerName] = useState('');
   const [calzaPlayerName, setCalzaPlayerName] = useState('');
+  
+  // Victory screen state
+  const [showVictoryScreen, setShowVictoryScreen] = useState(false);
+  const [gameWinner, setGameWinner] = useState<string | null>(null);
+  const [winnerAvatar, setWinnerAvatar] = useState<string>('🏴‍☠️');
+  const [winMethod, setWinMethod] = useState<'seven_dice' | 'seven_calzas' | 'last_standing'>('last_standing');
 
   const [selectedCount, setSelectedCount] = useState(1);
   const [selectedValue, setSelectedValue] = useState(1);
@@ -200,6 +208,24 @@ const PerudoGame = () => {
           setTimeout(() => {
             navigate('/main-hub');
           }, 2000);
+        }
+        
+        // Handle game completion (victory/defeat)
+        if (game.status === 'completed' && game.winner && !showVictoryScreen) {
+          setShowVictoryScreen(true);
+          setGameWinner(game.winner);
+          
+          // Get winner's nickname and avatar
+          const winnerPlayer = players.find(p => p.email === game.winner);
+          if (winnerPlayer) {
+            setWinnerAvatar(winnerPlayer.avatar || '🏴‍☠️');
+            setGameWinner(winnerPlayer.nickname || winnerPlayer.name || game.winner);
+          }
+          
+          // Set win method
+          if (game.winMethod) {
+            setWinMethod(game.winMethod);
+          }
         }
       } else {
         // Game doesn't exist, go back to main hub
@@ -322,7 +348,16 @@ const PerudoGame = () => {
     if (!currentGame?.id || !user?.email) return;
     
     try {
-      await callCalzaInFirebase(currentGame.id, user.email);
+      // Check if player is a ghost
+      const myPlayerStatus = currentGame?.gameState?.players[user.email]?.status;
+      
+      if (myPlayerStatus === 'ghost') {
+        // Ghost Calza
+        await callGhostCalzaInFirebase(currentGame.id, user.email);
+      } else {
+        // Regular Calza
+        await callCalzaInFirebase(currentGame.id, user.email);
+      }
       // Animation will be triggered by phase change
     } catch (error) {
       console.error('Error calling calza:', error);
@@ -338,6 +373,10 @@ const PerudoGame = () => {
         console.error('Error leaving game:', error);
       }
     }
+    navigate('/main-hub');
+  };
+  
+  const handleNavigateToHub = () => {
     navigate('/main-hub');
   };
 
@@ -887,7 +926,7 @@ const PerudoGame = () => {
                 <Button
                   onClick={handleBid}
                   className="w-full bg-secondary hover:bg-secondary/90"
-                  disabled={currentGame?.gameState?.currentPlayerId !== myPlayer?.id}
+                  disabled={currentGame?.gameState?.currentPlayerId !== myPlayer?.email}
                 >
                   Bid
                 </Button>
@@ -899,14 +938,31 @@ const PerudoGame = () => {
                   onClick={handleDudo}
                   variant="destructive"
                   className="flex-1 text-sm"
-                  disabled={!gameState.currentBid || currentGame?.gameState?.currentPlayerId !== myPlayer?.id}
+                  disabled={!gameState.currentBid || currentGame?.gameState?.currentPlayerId !== myPlayer?.email}
                 >
                   Dudo!
                 </Button>
                 <Button
                   onClick={handleCalza}
                   className="bg-accent hover:bg-accent/90 text-accent-foreground flex-1 text-sm"
-                  disabled={!gameState.currentBid || currentGame?.gameState?.currentPlayerId !== myPlayer?.id || currentGame?.gameState?.currentWager?.playerId === myPlayer?.id}
+                  disabled={(() => {
+                    // No bid to Calza
+                    if (!gameState.currentBid) return true;
+                    
+                    const myStatus = myPlayer?.status;
+                    
+                    // Dead players can't Calza
+                    if (myStatus === 'dead') return true;
+                    
+                    // Ghosts can Calza during bidding phase
+                    if (myStatus === 'ghost') {
+                      return gameState.phase !== 'bidding';
+                    }
+                    
+                    // Alive/zombie players: must be their turn and can't Calza own bid
+                    return currentGame?.gameState?.currentPlayerId !== myPlayer?.email || 
+                           currentGame?.gameState?.currentWager?.playerId === myPlayer?.email;
+                  })()}
                 >
                   Calza!
                 </Button>
@@ -1064,6 +1120,17 @@ const PerudoGame = () => {
       )}
       
       {/* Removed inline setTimeout - using useEffect instead */}
+      
+      {/* Victory Announcement */}
+      <VictoryAnnouncement
+        isVisible={showVictoryScreen}
+        winner={gameWinner || ''}
+        winnerAvatar={winnerAvatar}
+        winMethod={winMethod}
+        isWinner={currentGame?.winner === user?.email}
+        onNavigateToHub={handleNavigateToHub}
+        countdownSeconds={10}
+      />
     </div>
   );
 };

@@ -10,7 +10,8 @@ import {
   where, 
   orderBy,
   serverTimestamp,
-  Timestamp
+  Timestamp,
+  runTransaction
 } from 'firebase/firestore';
 import type { DocumentData, QuerySnapshot } from 'firebase/firestore';
 import { db } from '@/firebase/firebase';
@@ -28,6 +29,7 @@ export interface GamePlayer {
   calzaCount: number;
   status: 'alive' | 'ghost' | 'zombie' | 'dead' | 'disconnected';
   isReady: boolean;
+  wasGhost?: boolean; // Track if player was previously a ghost
   isConnected: boolean;
   joinedAt: Timestamp;
 }
@@ -59,6 +61,8 @@ export interface GameState {
   palificopPlayerEmail?: string; // Who triggered the current Palifico round
   palificoValueLock?: number; // The die value locked for this Palifico round
   previousDiceCounts?: { [playerEmail: string]: number }; // Track previous round dice counts
+  ghostCalzaInProgress?: boolean; // Prevent simultaneous ghost Calzas
+  ghostCalzaBy?: string; // Email of ghost attempting Calza
   currentWager?: GameWager;
   direction: 'up' | 'down';
   currentRoundDice: { [playerId: string]: number[] };
@@ -104,6 +108,7 @@ export interface Game {
   players: string[]; // Array of player emails/uids
   playerOrder: string[]; // Canonical order of players for consistent display
   winner?: string;
+  winMethod?: 'seven_dice' | 'seven_calzas' | 'last_standing';
   gameState?: GameState;
   settings: GameSettings;
 }
@@ -771,13 +776,14 @@ export const makeBid = async (
       value
     };
     
-    // Get next player using canonical order
+    // Get next player using canonical order (exclude ghosts and zombies from normal turns)
     const playerOrder = gameData.playerOrder || Object.keys(gameData.gameState.players);
-    const alivePlayers = playerOrder.filter(email => 
-      gameData.gameState!.players[email] &&
-      gameData.gameState!.players[email].status === 'alive' && 
-      gameData.gameState!.players[email].isConnected
-    );
+    const alivePlayers = playerOrder.filter(email => {
+      const player = gameData.gameState!.players[email];
+      return player &&
+        player.status === 'alive' && 
+        player.isConnected;
+    });
     
     const currentIndex = alivePlayers.indexOf(playerEmail);
     // Direction: down = next in list (higher index), up = previous in list (lower index)
@@ -1074,15 +1080,19 @@ export const callCalza = async (
       gameState: GameState;
       updatedAt: ReturnType<typeof serverTimestamp>;
       winner?: string;
+      winMethod?: 'seven_dice' | 'seven_calzas' | 'last_standing';
     } = {
       status: gameData.status,
       gameState: gameData.gameState,
       updatedAt: serverTimestamp()
     };
     
-    // Only include winner if game is completed
+    // Only include winner and win method if game is completed
     if (gameData.winner) {
       updateData.winner = gameData.winner;
+      if (gameData.winMethod) {
+        updateData.winMethod = gameData.winMethod;
+      }
     }
     
     await updateDoc(gameRef, updateData);
@@ -1116,6 +1126,172 @@ export const callCalza = async (
     
   } catch (error) {
     console.error('Error calling calza:', error);
+    throw error;
+  }
+};
+
+// Call calza as a ghost (for Ghost Mode)
+export const callGhostCalza = async (
+  gameId: string,
+  playerEmail: string
+): Promise<void> => {
+  try {
+    const gameRef = doc(db, 'games', gameId);
+    
+    // Use transaction to prevent race conditions
+    await runTransaction(db, async (transaction) => {
+      const gameDoc = await transaction.get(gameRef);
+      
+      if (!gameDoc.exists()) {
+        throw new Error('Game not found');
+      }
+      
+      const gameData = gameDoc.data() as Game;
+      
+      // Validate ghost can call Calza
+      const player = gameData.gameState?.players[playerEmail];
+      if (!player) {
+        throw new Error('Player not found');
+      }
+      
+      if (player.status !== 'ghost') {
+        throw new Error('Only ghosts can use ghost Calza');
+      }
+      
+      if (!gameData.gameState || !gameData.gameState.currentWager) {
+        throw new Error('No wager to calza');
+      }
+      
+      if (gameData.gameState.phase !== 'bidding') {
+        throw new Error('Can only calza during bidding phase');
+      }
+      
+      if (gameData.gameState.currentWager.playerId === playerEmail) {
+        throw new Error('Cannot calza your own bid');
+      }
+      
+      // Check if another ghost is already attempting Calza
+      if (gameData.gameState.ghostCalzaInProgress) {
+        throw new Error('Another ghost is already attempting Calza');
+      }
+      
+      // Claim the ghost Calza lock
+      gameData.gameState.ghostCalzaInProgress = true;
+      gameData.gameState.ghostCalzaBy = playerEmail;
+      
+      // Move to revealing phase
+      gameData.gameState.phase = 'revealing';
+      gameData.gameState.lastAction = 'calza';
+      gameData.gameState.lastActionBy = playerEmail;
+      
+      // Count actual dice and build totals
+      const wager = gameData.gameState.currentWager;
+      let actualCount = 0;
+      const isPalifico = gameData.gameState.isPalifico;
+      const totalDicePerValue: { [value: string]: number } = { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0 };
+      const revealedDice: { [playerId: string]: number[] } = {};
+      
+      Object.keys(gameData.gameState.players).forEach(email => {
+        const p = gameData.gameState!.players[email];
+        if ((p.status === 'alive' || p.status === 'zombie' || p.status === 'disconnected') && p.diceCount > 0) {
+          // Store revealed dice
+          revealedDice[email] = [...p.currentDice];
+          
+          // Count dice for totals
+          p.currentDice.forEach(die => {
+            totalDicePerValue[die.toString()]++;
+            if (die === wager.value || (!isPalifico && die === 1 && wager.value !== 1)) {
+              actualCount++;
+            }
+          });
+        }
+      });
+      
+      // Store revealed dice and totals
+      gameData.gameState.revealedDice = revealedDice;
+      gameData.gameState.totalDicePerValue = totalDicePerValue;
+      gameData.gameState.revealTime = serverTimestamp() as Timestamp;
+      
+      // Check if exact and determine outcome
+      const callerEmail = playerEmail;
+      let winnerEmail: string;
+      let loserEmail: string | undefined;
+      const diceChange: { [playerId: string]: number } = {};
+      
+      if (actualCount === wager.count) {
+        // Ghost Calza successful! Ghost returns as zombie with 1 die
+        winnerEmail = callerEmail;
+        diceChange[callerEmail] = 1; // Ghost gains 1 die
+        
+        // Update ghost to zombie status
+        player.status = 'zombie';
+        player.diceCount = 1;
+        // Note: This does NOT trigger Palifico per requirements
+      } else {
+        // Ghost Calza failed - ghost dies forever
+        loserEmail = callerEmail;
+        diceChange[callerEmail] = -1; // This will trigger permanent death
+        winnerEmail = wager.playerId; // Bidder wins
+        
+        // Ghost immediately becomes dead (will be handled in startNewRound)
+        player.status = 'dead';
+      }
+      
+      // Store round results for next round
+      gameData.gameState.roundResults = {
+        action: 'calza',
+        actionBy: callerEmail,
+        bidder: wager.playerId,
+        winner: winnerEmail,
+        loser: loserEmail || '',
+        actualCount,
+        bidCount: wager.count,
+        bidValue: wager.value,
+        diceChange
+      };
+      
+      // Clear ghost Calza lock
+      gameData.gameState.ghostCalzaInProgress = false;
+      gameData.gameState.ghostCalzaBy = undefined;
+      
+      // Commit all changes in the transaction
+      transaction.update(gameRef, {
+        gameState: gameData.gameState,
+        updatedAt: serverTimestamp()
+      });
+    });
+    
+    // After 3 seconds, transition to round_complete
+    setTimeout(async () => {
+      const transitionDoc = await getDoc(gameRef);
+      if (transitionDoc.exists()) {
+        const transitionData = transitionDoc.data() as Game;
+        if (transitionData.gameState?.phase === 'revealing') {
+          transitionData.gameState.phase = 'round_complete';
+          await updateDoc(gameRef, {
+            gameState: transitionData.gameState,
+            updatedAt: serverTimestamp()
+          });
+        }
+      }
+    }, 3000);
+    
+    // After 10 seconds total, start new round or end game
+    setTimeout(async () => {
+      // Re-fetch the game data to get the latest state
+      const freshGameDoc = await getDoc(gameRef);
+      if (freshGameDoc.exists()) {
+        const freshGameData = freshGameDoc.data() as Game;
+        if (freshGameData.status !== 'completed') {
+          // For ghost Calza, determine who starts next round
+          const nextStarter = freshGameData.gameState?.roundResults?.winner || playerEmail;
+          await startNewRound(gameRef, freshGameData, nextStarter);
+        }
+      }
+    }, 10000);
+    
+  } catch (error) {
+    console.error('Error calling ghost calza:', error);
     throw error;
   }
 };
@@ -1198,7 +1374,25 @@ const startNewRound = async (
           // Lost a die
           player.diceCount = Math.max(0, player.diceCount - 1);
           if (player.diceCount === 0) {
-            player.status = 'dead';
+            // Check if Ghost Mode should apply
+            const alivePlayersWithDice = Object.values(gameData.gameState.players).filter(
+              p => p.email !== playerEmail && p.status === 'alive' && p.diceCount > 0
+            ).length;
+            
+            if (gameData.settings?.ghostMode && alivePlayersWithDice >= 2) {
+              // Ghost Mode: Player becomes a ghost
+              if (player.wasGhost) {
+                // Was already a ghost/zombie once, now dead forever
+                player.status = 'dead';
+              } else {
+                // First time losing all dice, become a ghost
+                player.status = 'ghost';
+                player.wasGhost = true;
+              }
+            } else {
+              // No Ghost Mode or final showdown
+              player.status = 'dead';
+            }
           }
         } else if (change === 1) {
           // Successful Calza
@@ -1213,35 +1407,38 @@ const startNewRound = async (
             // Won by 7 calzas
             gameData.status = 'completed';
             gameData.winner = playerEmail;
+            gameData.winMethod = 'seven_calzas';
           } else if (gameData.settings.sevenDiceWins && oldDiceCount === 6 && player.diceCount === 6) {
             // They already had 6 dice and got another calza - this counts as getting the "7th" die
             gameData.status = 'completed';
             gameData.winner = playerEmail;
+            gameData.winMethod = 'seven_dice';
           }
         }
       }
     }
   }
   
-  // Check for game over using canonical order
+  // Check for game over using canonical order (alive or zombie can win, but not ghosts)
   const playerOrder = gameData.playerOrder || Object.keys(gameData.gameState.players);
-  const alivePlayers = playerOrder.filter(email => 
-    gameData.gameState!.players[email] &&
-    gameData.gameState!.players[email].status === 'alive'
-  );
+  const playersWhoCanWin = playerOrder.filter(email => {
+    const player = gameData.gameState!.players[email];
+    return player && (player.status === 'alive' || player.status === 'zombie');
+  });
   
-  if (alivePlayers.length === 1) {
-    // Game over!
+  if (playersWhoCanWin.length === 1) {
+    // Game over - last player standing!
     gameData.status = 'completed';
-    gameData.winner = alivePlayers[0];
+    gameData.winner = playersWhoCanWin[0];
+    gameData.winMethod = 'last_standing';
   } else {
-    // Roll new dice for all alive players
+    // Roll new dice for all alive and zombie players (not ghosts)
     const currentRoundDice: { [key: string]: number[] } = {};
     
     playerOrder.forEach(email => {
       if (gameData.gameState!.players[email]) {
         const player = gameData.gameState!.players[email];
-        if (player.status === 'alive' && player.diceCount > 0) {
+        if ((player.status === 'alive' || player.status === 'zombie') && player.diceCount > 0) {
           const dice = Array.from({ length: player.diceCount }, () => Math.floor(Math.random() * 6) + 1);
           currentRoundDice[email] = dice;
           player.currentDice = dice;
@@ -1260,12 +1457,23 @@ const startNewRound = async (
       // Find players who just went down to 1 die (not already at 1)
       const previousDiceCounts = gameData.gameState.previousDiceCounts || {};
       
-      for (const email of alivePlayers) {
+      // Only check alive and zombie players for Palifico (not ghosts returning)
+      const playersToCheck = playerOrder.filter(email => {
+        const player = gameData.gameState!.players[email];
+        return player && (player.status === 'alive' || player.status === 'zombie');
+      });
+      
+      for (const email of playersToCheck) {
         const currentDiceCount = gameData.gameState!.players[email].diceCount;
         const previousDiceCount = previousDiceCounts[email] || currentDiceCount;
         
         // Trigger Palifico if player went from >1 to exactly 1
-        if (currentDiceCount === 1 && previousDiceCount > 1) {
+        // Exclude zombies who just resurrected (they always start with 1 die)
+        const wasGhost = gameData.gameState!.roundResults?.action === 'calza' && 
+                        gameData.gameState!.roundResults?.actionBy === email &&
+                        gameData.gameState!.roundResults?.diceChange[email] === 1;
+        
+        if (currentDiceCount === 1 && previousDiceCount > 1 && !wasGhost) {
           isPalifico = true;
           palificopPlayerEmail = email;
           nextStartingPlayer = email; // Palifico player starts the round
@@ -1274,7 +1482,7 @@ const startNewRound = async (
       }
       
       // Update previous dice counts for next round
-      alivePlayers.forEach(email => {
+      playersToCheck.forEach(email => {
         if (!gameData.gameState!.previousDiceCounts) {
           gameData.gameState!.previousDiceCounts = {};
         }
@@ -1290,7 +1498,7 @@ const startNewRound = async (
       for (let i = 1; i <= playerOrder.length; i++) {
         const nextIndex = (startingPlayerIndex + i) % playerOrder.length;
         const nextEmail = playerOrder[nextIndex];
-        if (alivePlayers.includes(nextEmail)) {
+        if (playersWhoCanWin.includes(nextEmail)) {
           nextStartingPlayer = nextEmail;
           break;
         }
@@ -1315,7 +1523,7 @@ const startNewRound = async (
     
     // Keep existing stats and add dice rolled for this new round
     const updatedRoundStats: typeof gameData.gameState.roundStats = gameData.gameState.roundStats || {};
-    alivePlayers.forEach(email => {
+    playersWhoCanWin.forEach((email: string) => {
       const player = gameData.gameState!.players[email];
       const existingStats = updatedRoundStats[email] || {
         diceRolled: 0,
@@ -1345,15 +1553,19 @@ const startNewRound = async (
     gameState: GameState;
     updatedAt: ReturnType<typeof serverTimestamp>;
     winner?: string;
+    winMethod?: 'seven_dice' | 'seven_calzas' | 'last_standing';
   } = {
     status: gameData.status,
     gameState: gameData.gameState,
     updatedAt: serverTimestamp()
   };
   
-  // Only include winner if game is completed
+  // Only include winner and win method if game is completed
   if (gameData.winner) {
     updateData.winner = gameData.winner;
+    if (gameData.winMethod) {
+      updateData.winMethod = gameData.winMethod;
+    }
     
     // Update all player stats when game ends
     await updateGameEndStats(gameData, gameData.winner);

@@ -864,3 +864,159 @@ Add these keyframes to your src/index.css file:
 .animate-spin-slow { animation: spin-slow 8s linear infinite; }
 .animate-bounce-slow { animation: bounce-slow 3s ease-in-out infinite; }
 */
+
+// ============================================================================
+// VICTORY ANNOUNCEMENT - Game ending celebration
+// ============================================================================
+
+interface VictoryAnnouncementProps {
+  isVisible: boolean;
+  winner: string;
+  winnerAvatar?: string;
+  winMethod?: 'seven_dice' | 'seven_calzas' | 'last_standing';
+  isWinner: boolean;
+  onNavigateToHub?: () => void;
+  countdownSeconds?: number;
+}
+
+export function VictoryAnnouncement({
+  isVisible,
+  winner,
+  winnerAvatar = '🏴‍☠️',
+  winMethod = 'last_standing',
+  isWinner,
+  onNavigateToHub,
+  countdownSeconds = 10
+}: VictoryAnnouncementProps) {
+  const [countdown, setCountdown] = useState(countdownSeconds);
+  const [confetti, setConfetti] = useState<Array<{ id: number; x: number; color: string; delay: number }>>([]);
+
+  useEffect(() => {
+    if (!isVisible) return;
+
+    // Generate confetti
+    if (isWinner) {
+      const newConfetti = Array.from({ length: 50 }, (_, i) => ({
+        id: i,
+        x: Math.random() * 100,
+        color: ['#fbbf24', '#10b981', '#3b82f6', '#ef4444', '#8b5cf6', '#f97316'][Math.floor(Math.random() * 6)],
+        delay: Math.random() * 2
+      }));
+      setConfetti(newConfetti);
+    }
+
+    // Start countdown
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          onNavigateToHub?.();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isVisible, isWinner, onNavigateToHub]);
+
+  if (!isVisible) return null;
+
+  const winMethodDisplay = {
+    seven_dice: { icon: '🎲', text: 'Seven Dice Victory!' },
+    seven_calzas: { icon: '🎯', text: 'Seven Calzas Victory!' },
+    last_standing: { icon: '👑', text: 'Last One Standing!' }
+  };
+
+  const methodInfo = winMethodDisplay[winMethod];
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center">
+      {/* Background overlay */}
+      <div 
+        className={cn(
+          "absolute inset-0 transition-opacity duration-1000",
+          isWinner 
+            ? "bg-gradient-to-br from-yellow-900/80 via-amber-900/70 to-orange-900/80"
+            : "bg-gradient-to-br from-gray-900/90 via-slate-900/85 to-zinc-900/90"
+        )}
+      />
+
+      {/* Confetti for winner */}
+      {isWinner && confetti.map((piece) => (
+        <div
+          key={piece.id}
+          className="absolute w-3 h-3 animate-confetti-fall"
+          style={{
+            left: `${piece.x}%`,
+            top: '-10px',
+            backgroundColor: piece.color,
+            animationDelay: `${piece.delay}s`,
+            transform: `rotate(${Math.random() * 360}deg)`
+          }}
+        />
+      ))}
+
+      {/* Main content */}
+      <div className="relative z-10 text-center px-6 animate-enter-scale">
+        {/* Trophy or Skull */}
+        <div className="mb-6 animate-trophy-bounce">
+          <div className="text-8xl inline-block">
+            {isWinner ? '🏆' : '💀'}
+          </div>
+        </div>
+
+        {/* Victory/Defeat text */}
+        <h1 
+          className={cn(
+            "text-5xl font-bold mb-4",
+            isWinner 
+              ? "text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-amber-300"
+              : "text-gray-400"
+          )}
+        >
+          {isWinner ? 'VICTORY!' : 'DEFEAT'}
+        </h1>
+
+        {/* Winner announcement */}
+        <div className="mb-6">
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <span className="text-4xl">{winnerAvatar}</span>
+            <h2 className="text-3xl font-bold text-white">
+              {winner} Wins!
+            </h2>
+          </div>
+          
+          {/* Win method */}
+          <div className="flex items-center justify-center gap-2 mt-4">
+            <span className="text-3xl">{methodInfo.icon}</span>
+            <p className="text-xl text-gray-200">{methodInfo.text}</p>
+          </div>
+        </div>
+
+        {/* Countdown and button */}
+        <div className="mt-8 space-y-4">
+          <p className="text-gray-300">
+            Returning to hub in {countdown} seconds...
+          </p>
+          <button
+            onClick={onNavigateToHub}
+            className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors font-semibold"
+          >
+            Return to Hub
+          </button>
+        </div>
+      </div>
+
+      {/* Additional decorations */}
+      {isWinner && (
+        <>
+          <div className="absolute top-10 left-10 text-6xl animate-crown-float">✨</div>
+          <div className="absolute top-20 right-20 text-5xl animate-bounce-slow">🌟</div>
+          <div className="absolute bottom-20 left-20 text-5xl animate-spin-slow">⭐</div>
+          <div className="absolute bottom-10 right-10 text-6xl animate-float">🎉</div>
+        </>
+      )}
+    </div>
+  );
+}
