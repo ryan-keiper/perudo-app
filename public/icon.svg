@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- White Background -->
+  <rect width="512" height="512" rx="80" fill="white"/>
+  
+  <!-- Red Anchor (Lucide-style) -->
+  <g transform="translate(256, 256)">
+    <!-- Ring at top -->
+    <circle cx="0" cy="-100" r="35" fill="none" stroke="#dc2626" stroke-width="20"/>
+    
+    <!-- Vertical shaft -->
+    <rect x="-10" y="-65" width="20" height="165" fill="#dc2626"/>
+    
+    <!-- Horizontal cross bar -->
+    <rect x="-90" y="40" width="180" height="20" fill="#dc2626"/>
+    
+    <!-- Left fluke -->
+    <path d="M -90 60 L -90 120 L -70 120 L -70 60 Z" fill="#dc2626"/>
+    <path d="M -90 120 L -90 140 L -110 120 Z" fill="#dc2626"/>
+    
+    <!-- Right fluke -->
+    <path d="M 90 60 L 90 120 L 70 120 L 70 60 Z" fill="#dc2626"/>
+    <path d="M 90 120 L 90 140 L 110 120 Z" fill="#dc2626"/>
+  </g>
+</svg>
