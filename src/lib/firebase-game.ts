@@ -573,6 +573,56 @@ export const transitionFromRolling = async (gameId: string): Promise<void> => {
   }
 };
 
+// Transition from round_complete to new round
+export const transitionToNewRound = async (gameId: string): Promise<void> => {
+  try {
+    const gameRef = doc(db, 'games', gameId);
+    const gameDoc = await getDoc(gameRef);
+    
+    if (!gameDoc.exists()) {
+      throw new Error('Game not found');
+    }
+    
+    const gameData = gameDoc.data() as Game;
+    
+    // Only transition if we're in round_complete phase and game isn't over
+    if (gameData.gameState && 
+        gameData.gameState.phase === 'round_complete' && 
+        gameData.status !== 'completed') {
+      
+      console.log('[transitionToNewRound] Starting new round transition');
+      
+      // Determine who starts the next round based on last action
+      let nextStarter = gameData.gameState.lastActionBy;
+      
+      // If we don't have lastActionBy, try to get from roundResults
+      if (!nextStarter && gameData.gameState.roundResults) {
+        if (gameData.gameState.lastAction === 'dudo') {
+          // For dudo, the challenger starts next round
+          nextStarter = gameData.gameState.roundResults.actionBy;
+        } else if (gameData.gameState.lastAction === 'calza') {
+          // For calza, the winner starts next round
+          nextStarter = gameData.gameState.roundResults.winner;
+        }
+      }
+      
+      // Fallback to current player if we still don't have a starter
+      if (!nextStarter) {
+        nextStarter = gameData.gameState.currentPlayerId || 
+                     Object.keys(gameData.gameState.players)[0];
+      }
+      
+      console.log('[transitionToNewRound] Next starter will be:', nextStarter);
+      
+      // Call startNewRound
+      await startNewRound(gameRef, gameData, nextStarter);
+    }
+  } catch (error) {
+    console.error('Error transitioning to new round:', error);
+    throw error;
+  }
+};
+
 // Start game
 export const startGame = async (gameId: string): Promise<void> => {
   try {
@@ -935,11 +985,25 @@ export const callDudo = async (
     
     // After 10 seconds total, start new round
     setTimeout(async () => {
-      // Re-fetch the game data to get the latest state
-      const freshGameDoc = await getDoc(gameRef);
-      if (freshGameDoc.exists()) {
-        const freshGameData = freshGameDoc.data() as Game;
-        await startNewRound(gameRef, freshGameData, challengerEmail);  // Player who called dudo starts next
+      console.log('[callDudo] 10-second timeout fired, attempting to start new round');
+      try {
+        // Re-fetch the game data to get the latest state
+        const freshGameDoc = await getDoc(gameRef);
+        console.log('[callDudo] Fresh game doc exists?', freshGameDoc.exists());
+        
+        if (freshGameDoc.exists()) {
+          const freshGameData = freshGameDoc.data() as Game;
+          console.log('[callDudo] Game status:', freshGameData.status, 'Phase:', freshGameData.gameState?.phase);
+          
+          if (freshGameData.status !== 'completed') {
+            console.log('[callDudo] Game not completed, calling startNewRound with:', challengerEmail);
+            await startNewRound(gameRef, freshGameData, challengerEmail);  // Player who called dudo starts next
+          } else {
+            console.log('[callDudo] Game is completed, not starting new round');
+          }
+        }
+      } catch (error) {
+        console.error('Error in dudo round transition:', error);
       }
     }, 10000);
     
@@ -1114,13 +1178,17 @@ export const callCalza = async (
     
     // After 10 seconds total, start new round or end game
     setTimeout(async () => {
-      // Re-fetch the game data to get the latest state
-      const freshGameDoc = await getDoc(gameRef);
-      if (freshGameDoc.exists()) {
-        const freshGameData = freshGameDoc.data() as Game;
-        if (freshGameData.status !== 'completed') {
-          await startNewRound(gameRef, freshGameData, playerEmail);  // Player who called calza starts next
+      try {
+        // Re-fetch the game data to get the latest state
+        const freshGameDoc = await getDoc(gameRef);
+        if (freshGameDoc.exists()) {
+          const freshGameData = freshGameDoc.data() as Game;
+          if (freshGameData.status !== 'completed') {
+            await startNewRound(gameRef, freshGameData, playerEmail);  // Player who called calza starts next
+          }
         }
+      } catch (error) {
+        console.error('Error in calza round transition:', error);
       }
     }, 10000);
     
@@ -1278,15 +1346,19 @@ export const callGhostCalza = async (
     
     // After 10 seconds total, start new round or end game
     setTimeout(async () => {
-      // Re-fetch the game data to get the latest state
-      const freshGameDoc = await getDoc(gameRef);
-      if (freshGameDoc.exists()) {
-        const freshGameData = freshGameDoc.data() as Game;
-        if (freshGameData.status !== 'completed') {
-          // For ghost Calza, determine who starts next round
-          const nextStarter = freshGameData.gameState?.roundResults?.winner || playerEmail;
-          await startNewRound(gameRef, freshGameData, nextStarter);
+      try {
+        // Re-fetch the game data to get the latest state
+        const freshGameDoc = await getDoc(gameRef);
+        if (freshGameDoc.exists()) {
+          const freshGameData = freshGameDoc.data() as Game;
+          if (freshGameData.status !== 'completed') {
+            // For ghost Calza, determine who starts next round
+            const nextStarter = freshGameData.gameState?.roundResults?.winner || playerEmail;
+            await startNewRound(gameRef, freshGameData, nextStarter);
+          }
         }
+      } catch (error) {
+        console.error('Error in ghost calza round transition:', error);
       }
     }, 10000);
     
@@ -1360,7 +1432,11 @@ const startNewRound = async (
   gameData: Game,
   startingPlayerEmail: string
 ): Promise<void> => {
-  if (!gameData.gameState) return;
+  console.log('[startNewRound] Called with starting player:', startingPlayerEmail);
+  if (!gameData.gameState) {
+    console.log('[startNewRound] No gameState, returning early');
+    return;
+  }
   
   // Apply dice changes from the previous round if any
   if (gameData.gameState.roundResults) {
@@ -1512,7 +1588,14 @@ const startNewRound = async (
     delete gameData.gameState.currentWager;  // Remove instead of setting undefined
     delete gameData.gameState.palificoValueLock; // Clear value lock from previous Palifico round
     gameData.gameState.isPalifico = isPalifico;
-    gameData.gameState.palificopPlayerEmail = palificopPlayerEmail;
+    
+    // Only set palificopPlayerEmail if it exists, otherwise delete it
+    if (palificopPlayerEmail) {
+      gameData.gameState.palificopPlayerEmail = palificopPlayerEmail;
+    } else {
+      delete gameData.gameState.palificopPlayerEmail;
+    }
+    
     gameData.gameState.currentPlayerId = nextStartingPlayer;
     gameData.gameState.roundStartedBy = nextStartingPlayer;
     gameData.gameState.direction = 'down';  // Reset to default direction

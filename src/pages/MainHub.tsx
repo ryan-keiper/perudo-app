@@ -21,12 +21,28 @@ import {
   User,
   Loader2,
   Settings,
-  X
+  X,
+  Sun,
+  Moon,
+  Monitor
 } from 'lucide-react';
+import { useTheme } from '@/hooks/useTheme';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const MainHub = () => {
   const navigate = useNavigate();
   const { user, profile, refreshProfile } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [activeGames, setActiveGames] = useState<Game[]>([]);
   const [isCreatingGame, setIsCreatingGame] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -116,28 +132,61 @@ const MainHub = () => {
             <h1 className="text-2xl font-bold text-primary">Perudo</h1>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                console.log('Profile button clicked, profile:', profile);
-                setShowProfileEditor(true);
-              }}
-              className="gap-2"
-            >
-              <span className="text-2xl">{profile?.avatar || '👤'}</span>
-              <span className="hidden sm:inline">{profile?.nickname || 'Profile'}</span>
-              <Settings className="size-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleSignOut}
-              className="gap-2"
-            >
-              <LogOut className="size-4" />
-              <span className="hidden sm:inline">Sign Out</span>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-2"
+                >
+                  <span className="text-2xl">{profile?.avatar || '👤'}</span>
+                  <span className="hidden sm:inline">{profile?.nickname || 'Profile'}</span>
+                  <Settings className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setShowProfileEditor(true)}
+                  className="gap-2"
+                >
+                  <User className="size-4" />
+                  Edit Profile
+                </DropdownMenuItem>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="gap-2">
+                    {theme === 'dark' ? <Moon className="size-4" /> : theme === 'light' ? <Sun className="size-4" /> : <Monitor className="size-4" />}
+                    Theme
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    <DropdownMenuItem onClick={() => setTheme('light')} className="gap-2">
+                      <Sun className="size-4" />
+                      Light
+                      {theme === 'light' && <span className="ml-auto">✓</span>}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTheme('dark')} className="gap-2">
+                      <Moon className="size-4" />
+                      Dark
+                      {theme === 'dark' && <span className="ml-auto">✓</span>}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTheme('system')} className="gap-2">
+                      <Monitor className="size-4" />
+                      System
+                      {theme === 'system' && <span className="ml-auto">✓</span>}
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={handleSignOut}
+                  className="gap-2 text-destructive focus:text-destructive"
+                >
+                  <LogOut className="size-4" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>

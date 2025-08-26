@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AVAILABLE_AVATARS, updateUserProfile, calculateSuccessRates } from '@/lib/firebase-user';
 import type { UserProfile } from '@/lib/firebase-user';
-import { User, Trophy, Zap, Award } from 'lucide-react';
+import { User, Trophy, Zap, Award, Sun, Moon, Monitor } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Timestamp } from 'firebase/firestore';
+import { useTheme } from '@/hooks/useTheme';
 
 interface ProfileEditorProps {
   profile: UserProfile;
@@ -22,6 +23,7 @@ export function ProfileEditor({ profile, isOpen, onClose, onProfileUpdate }: Pro
   const [selectedAvatar, setSelectedAvatar] = useState(profile.avatar);
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'profile' | 'stats'>('profile');
+  const { theme, setTheme } = useTheme();
 
   const stats = calculateSuccessRates(profile.stats);
 
@@ -129,6 +131,43 @@ export function ProfileEditor({ profile, isOpen, onClose, onProfileUpdate }: Pro
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Theme Selection */}
+            <div className="space-y-2">
+              <Label>Theme Preference</Label>
+              <div className="grid grid-cols-3 gap-2">
+                <Button
+                  type="button"
+                  variant={theme === 'light' ? 'default' : 'outline'}
+                  onClick={() => setTheme('light')}
+                  className="gap-2"
+                >
+                  <Sun className="size-4" />
+                  Light
+                </Button>
+                <Button
+                  type="button"
+                  variant={theme === 'dark' ? 'default' : 'outline'}
+                  onClick={() => setTheme('dark')}
+                  className="gap-2"
+                >
+                  <Moon className="size-4" />
+                  Dark
+                </Button>
+                <Button
+                  type="button"
+                  variant={theme === 'system' ? 'default' : 'outline'}
+                  onClick={() => setTheme('system')}
+                  className="gap-2"
+                >
+                  <Monitor className="size-4" />
+                  System
+                </Button>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Choose your preferred color theme
+              </p>
             </div>
 
             {/* Save Button */}

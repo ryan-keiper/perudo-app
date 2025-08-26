@@ -26,6 +26,25 @@
   </head>
 
   <body>
+    <!-- Theme detection script to prevent flash of wrong theme -->
+    <script>
+      (function() {
+        // Get theme from localStorage or default to system
+        const storedTheme = localStorage.getItem('theme');
+        const theme = storedTheme || 'system';
+        
+        // Determine effective theme
+        let effectiveTheme = theme;
+        if (theme === 'system') {
+          effectiveTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        
+        // Apply dark class if needed
+        if (effectiveTheme === 'dark') {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

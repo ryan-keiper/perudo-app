@@ -17,6 +17,7 @@ import {
   sortPlayersByCanonicalOrder,
   setRoundDirection,
   transitionFromRolling,
+  transitionToNewRound,
   getSecureGameStateForPlayer,
   type Game,
   type GamePlayer
@@ -185,6 +186,15 @@ const PerudoGame = () => {
             setTimeout(() => {
               transitionFromRolling(secureGame.id!);
             }, 2000);
+          }
+          
+          // Handle round complete phase transition (after animations finish)
+          if (phase === 'round_complete' && secureGame.id) {
+            console.log('[Round Transition] Phase is round_complete, starting new round after delay');
+            setTimeout(() => {
+              console.log('[Round Transition] Calling transitionToNewRound');
+              transitionToNewRound(secureGame.id!);
+            }, 10000); // Wait 10 seconds for animations to complete
           }
           
           // Start dice roll animation when phase changes to rolling
@@ -510,6 +520,41 @@ const PerudoGame = () => {
       }
     }
   }, [selectedValue]); // Dependencies managed manually to avoid infinite loops
+  
+  // Set initial count to minimum valid when it becomes player's turn
+  useEffect(() => {
+    const currentPlayerId = currentGame?.gameState?.currentPlayerId;
+    console.log('[Count Init] Phase:', gameState.phase, 'CurrentPlayer:', currentPlayerId, 'MyEmail:', myPlayer?.email);
+    
+    if (gameState.phase === 'bidding' && 
+        currentPlayerId === myPlayer?.email &&
+        gameState.currentBid) {
+      
+      const currentBidCount = gameState.currentBid.count;
+      const currentBidValue = gameState.currentBid.value;
+      const totalDice = gameState.totalDice;
+      
+      console.log('[Count Init] Current bid:', currentBidCount, 'x', currentBidValue);
+      console.log('[Count Init] Total dice on board:', totalDice);
+      
+      // Logic: If current bid value is 5 or less, next valid bid can be same count but higher value
+      // If current bid value is 6, must increase count
+      let targetCount: number;
+      
+      if (currentBidValue < 6) {
+        // Can bid at same count with higher value
+        targetCount = currentBidCount;
+        console.log('[Count Init] Bid value < 6, can use same count:', targetCount);
+      } else {
+        // Value is 6, must increase count
+        targetCount = Math.min(currentBidCount + 1, totalDice);
+        console.log('[Count Init] Bid value = 6, must increase count to:', targetCount);
+      }
+      
+      console.log('[Count Init] Setting selected count to:', targetCount);
+      setSelectedCount(targetCount);
+    }
+  }, [gameState.phase, currentGame?.gameState?.currentPlayerId, gameState.currentBid?.count, gameState.currentBid?.value]); // React to turn changes
   
   // Handle animation sequencing
   useEffect(() => {
