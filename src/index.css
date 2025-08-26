@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
+@custom-variant standalone (&:is(.standalone *));
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -243,3 +244,21 @@
 .animate-float { animation: float 3s ease-in-out infinite; }
 .animate-spin-slow { animation: spin-slow 8s linear infinite; }
 .animate-bounce-slow { animation: bounce-slow 3s ease-in-out infinite; }
+
+/* PWA Safe Area Support */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Apply safe area padding when in standalone mode (PWA) */
+.standalone header {
+  padding-top: calc(1rem + env(safe-area-inset-top));
+}
+
+.standalone main {
+  padding-bottom: env(safe-area-inset-bottom);
+}

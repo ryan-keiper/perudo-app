@@ -33,7 +33,7 @@
   </head>
 
   <body>
-    <!-- Theme detection script to prevent flash of wrong theme -->
+    <!-- Theme detection and PWA detection script -->
     <script>
       (function() {
         // Get theme from localStorage or default to system
@@ -49,6 +49,15 @@
         // Apply dark class if needed
         if (effectiveTheme === 'dark') {
           document.documentElement.classList.add('dark');
+        }
+        
+        // Detect if running as PWA (standalone mode)
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                            window.navigator.standalone === true ||
+                            document.referrer.includes('android-app://');
+        
+        if (isStandalone) {
+          document.documentElement.classList.add('standalone');
         }
       })();
     </script>
