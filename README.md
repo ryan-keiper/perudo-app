@@ -2,6 +2,9 @@
 
 *A next-gen Perudo app for the people. Now with 20% more deception!*
 
+🎥 **Demo Video**  
+- [Loom Demo (1:44)](https://www.loom.com/share/6c7391f41df24d199cc386a52c526981) 
+
 This is a multiplayer web version of the classic bluffing dice game **Perudo**, rebuilt for the modern era using [React](https://reactjs.org/), [Vite](https://vitejs.dev/), [TypeScript](https://www.typescriptlang.org/), and [Firebase](https://firebase.google.com/).
 
 ---
